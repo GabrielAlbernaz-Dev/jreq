@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.jreq.shared.ui.components.EmptyStateView?>
+<?import com.jreq.shared.ui.components.KeyValueEditor?>
+<?import com.jreq.shared.ui.components.RequestBarControl?>
+<?import com.jreq.shared.ui.components.ResponseMetadataView?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.MenuButton?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Priority?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane fx:id="mainRoot" styleClass="app-root,layout-normal"
+            xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.jreq.request.presentation.MainController">
+    <top>
+        <HBox alignment="CENTER_LEFT" styleClass="top-bar">
+            <children>
+                <Button fx:id="sidebarToggle" text="☰" styleClass="icon-button,sidebar-toggle"
+                        accessibleText="Toggle sidebar">
+                    <tooltip><Tooltip text="Toggle sidebar (Ctrl/Cmd+B)"/></tooltip>
+                </Button>
+                <Label text="j" styleClass="logo-mark"/>
+                <Label text="REQ" styleClass="logo-text"/>
+                <Label text="HTTP WORKSPACE" styleClass="product-context,wide-only"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <MenuButton text="Local" styleClass="environment-menu">
+                    <items>
+                        <MenuItem text="Local"/>
+                        <MenuItem text="Manage environments…"/>
+                    </items>
+                </MenuButton>
+                <Button text="⚙" styleClass="icon-button" accessibleText="Settings">
+                    <tooltip><Tooltip text="Settings"/></tooltip>
+                </Button>
+            </children>
+        </HBox>
+    </top>
+
+    <left>
+        <VBox fx:id="sidebar" styleClass="sidebar">
+            <children>
+                <HBox alignment="CENTER_LEFT" styleClass="sidebar-heading-row">
+                    <Label text="COLLECTIONS" styleClass="section-kicker"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Button text="+" styleClass="icon-button,small-icon-button" accessibleText="New collection">
+                        <tooltip><Tooltip text="New collection"/></tooltip>
+                    </Button>
+                </HBox>
+                <VBox styleClass="sidebar-list" VBox.vgrow="ALWAYS">
+                    <children>
+                        <Label text="No saved requests" styleClass="sidebar-empty-label"/>
+                    </children>
+                </VBox>
+                <Separator/>
+                <HBox alignment="CENTER_LEFT" styleClass="sidebar-heading-row">
+                    <Label text="HISTORY" styleClass="section-kicker"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label text="RECENT" styleClass="muted-label,wide-only"/>
+                </HBox>
+                <VBox styleClass="sidebar-list">
+                    <children>
+                        <Label text="No history yet" styleClass="sidebar-empty-label"/>
+                    </children>
+                </VBox>
+                <Button text="+ New request" onAction="#handleNewRequest"
+                        styleClass="secondary-button,new-request-button" maxWidth="Infinity"/>
+            </children>
+        </VBox>
+    </left>
+
+    <center>
+        <SplitPane orientation="VERTICAL" dividerPositions="0.50" styleClass="workspace-split">
+            <items>
+                <VBox styleClass="request-panel">
+                    <children>
+                        <RequestBarControl fx:id="requestBar"/>
+                        <TabPane fx:id="requestTabs" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS"
+                                 styleClass="workspace-tabs">
+                            <tabs>
+                                <Tab text="Params">
+                                    <content>
+                                        <StackPane>
+                                            <padding><Insets top="12" right="16" bottom="16" left="16"/></padding>
+                                            <KeyValueEditor/>
+                                        </StackPane>
+                                    </content>
+                                </Tab>
+                                <Tab text="Headers">
+                                    <content>
+                                        <StackPane>
+                                            <padding><Insets top="12" right="16" bottom="16" left="16"/></padding>
+                                            <KeyValueEditor/>
+                                        </StackPane>
+                                    </content>
+                                </Tab>
+                                <Tab text="Body">
+                                    <content>
+                                        <VBox spacing="8">
+                                            <padding><Insets top="12" right="16" bottom="16" left="16"/></padding>
+                                            <Label text="JSON / RAW TEXT" styleClass="section-kicker"/>
+                                            <TextArea promptText="Enter a JSON or raw text body" wrapText="true"
+                                                      styleClass="code-area" VBox.vgrow="ALWAYS"/>
+                                        </VBox>
+                                    </content>
+                                </Tab>
+                                <Tab text="Auth">
+                                    <content><EmptyStateView fx:id="authEmptyState"/></content>
+                                </Tab>
+                            </tabs>
+                        </TabPane>
+                    </children>
+                </VBox>
+
+                <VBox styleClass="response-panel">
+                    <children>
+                        <HBox alignment="CENTER_LEFT" styleClass="response-heading">
+                            <Label text="Response" styleClass="panel-title"/>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <ResponseMetadataView fx:id="responseMetadata"/>
+                        </HBox>
+                        <TabPane fx:id="responseTabs" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS"
+                                 styleClass="workspace-tabs,response-tabs">
+                            <tabs>
+                                <Tab text="Body">
+                                    <content>
+                                        <TextArea fx:id="responseBody" editable="false" wrapText="false"
+                                                  promptText="Send a request to view the response body"
+                                                  styleClass="code-area,response-body"/>
+                                    </content>
+                                </Tab>
+                                <Tab text="Headers">
+                                    <content>
+                                        <TextArea editable="false" wrapText="false" styleClass="code-area"
+                                                  promptText="Response headers will appear here"/>
+                                    </content>
+                                </Tab>
+                                <Tab text="Raw">
+                                    <content>
+                                        <TextArea editable="false" wrapText="false" styleClass="code-area"
+                                                  promptText="The raw response will appear here"/>
+                                    </content>
+                                </Tab>
+                            </tabs>
+                        </TabPane>
+                    </children>
+                </VBox>
+            </items>
+        </SplitPane>
+    </center>
+
+    <bottom>
+        <HBox alignment="CENTER_LEFT" styleClass="status-bar">
+            <children>
+                <Label text="●" styleClass="connection-indicator"/>
+                <Label fx:id="statusMessage" text="Ready"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label text="LOCAL DATA" styleClass="muted-label,wide-only"/>
+                <Label text="UTF-8" styleClass="muted-label"/>
+            </children>
+        </HBox>
+    </bottom>
+</BorderPane>

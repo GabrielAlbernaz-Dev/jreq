@@ -1,0 +1,114 @@
+.root {
+    -jreq-background: #0B0B0D;
+    -jreq-surface: #141418;
+    -jreq-elevated: #1C1C22;
+    -jreq-interactive: #24242C;
+    -jreq-border: #30303A;
+    -jreq-subtle-border: #24242B;
+    -jreq-red: #E53935;
+    -jreq-red-hover: #F04440;
+    -jreq-red-pressed: #C62828;
+    -jreq-red-soft: #3A1718;
+    -jreq-text: #F4F4F5;
+    -jreq-text-secondary: #B4B4BD;
+    -jreq-text-disabled: #70707A;
+    -jreq-success: #2FBF71;
+    -jreq-warning: #F0A43B;
+    -jreq-error: #FF6464;
+    -jreq-info: #5DA9E9;
+
+    -fx-background-color: -jreq-background;
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 13px;
+    -fx-text-fill: -jreq-text;
+    -fx-focus-color: -jreq-red;
+    -fx-faint-focus-color: rgba(229, 57, 53, 0.22);
+    -fx-accent: -jreq-red;
+}
+
+.label {
+    -fx-text-fill: -jreq-text;
+}
+
+.muted-label {
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 11px;
+}
+
+.monospace,
+.code-area,
+.url-field {
+    -fx-font-family: "JetBrains Mono", "Consolas", "Monospaced";
+}
+
+.text-field,
+.text-area,
+.combo-box-base,
+.menu-button {
+    -fx-background-color: -jreq-interactive;
+    -fx-border-color: -jreq-border;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+    -fx-text-fill: -jreq-text;
+    -fx-prompt-text-fill: -jreq-text-disabled;
+}
+
+.text-field:focused,
+.text-area:focused,
+.combo-box-base:focused,
+.menu-button:focused {
+    -fx-border-color: -jreq-red;
+    -fx-effect: none;
+}
+
+.text-area .content {
+    -fx-background-color: -jreq-interactive;
+    -fx-background-radius: 2px;
+}
+
+.text-area:focused .content {
+    -fx-background-color: -jreq-interactive;
+}
+
+.button {
+    -fx-cursor: hand;
+    -fx-effect: none;
+}
+
+.button:focused {
+    -fx-border-color: -jreq-red;
+    -fx-border-width: 1px;
+}
+
+.scroll-bar:horizontal,
+.scroll-bar:vertical {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .track {
+    -fx-background-color: -jreq-surface;
+    -fx-background-radius: 0;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: -jreq-border;
+    -fx-background-radius: 2px;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: -jreq-text-disabled;
+}
+
+.separator .line {
+    -fx-border-color: -jreq-subtle-border;
+    -fx-border-width: 1px 0 0 0;
+}
+
+.context-menu {
+    -fx-background-color: -jreq-elevated;
+    -fx-border-color: -jreq-border;
+}
+
+.menu-item:focused {
+    -fx-background-color: -jreq-red-soft;
+}

@@ -1,0 +1,43 @@
+# Maven
+target/
+dependency-reduced-pom.xml
+
+# IDEs
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+
+# Operating systems
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local application data
+*.db
+*.db-shm
+*.db-wal
+logs/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# jlink / jpackage artifacts
+jreq-runtime/
+dist/
+*.dmg
+*.pkg
+*.msi
+*.exe
+*.deb
+*.rpm
+*.app-image/
+
+AGENTS.md

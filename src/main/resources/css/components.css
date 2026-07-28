@@ -1,0 +1,351 @@
+.app-root {
+    -fx-background-color: -jreq-background;
+}
+
+.top-bar {
+    -fx-min-height: 52px;
+    -fx-pref-height: 52px;
+    -fx-padding: 0 12px;
+    -fx-spacing: 4px;
+    -fx-background-color: -jreq-surface;
+    -fx-border-color: -jreq-subtle-border;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.logo-mark,
+.logo-text {
+    -fx-font-size: 20px;
+    -fx-font-weight: 800;
+}
+
+.logo-mark {
+    -fx-text-fill: -jreq-red;
+    -fx-padding: 0 0 0 8px;
+}
+
+.logo-text {
+    -fx-text-fill: -jreq-text;
+}
+
+.product-context {
+    -fx-padding: 1px 0 0 12px;
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+}
+
+.environment-menu {
+    -fx-min-height: 32px;
+    -fx-padding: 0 4px;
+}
+
+.icon-button {
+    -fx-min-width: 32px;
+    -fx-min-height: 32px;
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-background-radius: 3px;
+    -fx-border-radius: 3px;
+    -fx-text-fill: -jreq-text-secondary;
+}
+
+.icon-button:hover {
+    -fx-background-color: -jreq-interactive;
+    -fx-text-fill: -jreq-text;
+}
+
+.icon-button:pressed {
+    -fx-background-color: -jreq-elevated;
+}
+
+.small-icon-button {
+    -fx-min-width: 28px;
+    -fx-min-height: 28px;
+}
+
+.primary-button {
+    -fx-background-color: -jreq-red;
+    -fx-background-radius: 3px;
+    -fx-border-radius: 3px;
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+}
+
+.primary-button:hover {
+    -fx-background-color: -jreq-red-hover;
+}
+
+.primary-button:pressed {
+    -fx-background-color: -jreq-red-pressed;
+}
+
+.primary-button:disabled {
+    -fx-background-color: -jreq-red-soft;
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-opacity: 1;
+}
+
+.secondary-button {
+    -fx-min-height: 32px;
+    -fx-padding: 6px 12px;
+    -fx-background-color: transparent;
+    -fx-border-color: -jreq-border;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+    -fx-text-fill: -jreq-text-secondary;
+}
+
+.secondary-button:hover {
+    -fx-background-color: -jreq-interactive;
+    -fx-text-fill: -jreq-text;
+}
+
+.sidebar {
+    -fx-pref-width: 224px;
+    -fx-min-width: 188px;
+    -fx-padding: 12px 8px;
+    -fx-spacing: 8px;
+    -fx-background-color: -jreq-surface;
+    -fx-border-color: -jreq-subtle-border;
+    -fx-border-width: 0 1px 0 0;
+}
+
+.sidebar-heading-row {
+    -fx-min-height: 32px;
+    -fx-padding: 0 4px;
+}
+
+.section-kicker {
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 10px;
+    -fx-font-weight: 800;
+}
+
+.sidebar-list {
+    -fx-spacing: 2px;
+}
+
+.sidebar-empty-label {
+    -fx-padding: 8px;
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 12px;
+}
+
+.sidebar-item {
+    -fx-min-height: 34px;
+    -fx-padding: 0 8px;
+    -fx-spacing: 8px;
+    -fx-background-radius: 3px;
+    -fx-cursor: hand;
+}
+
+.sidebar-item:hover {
+    -fx-background-color: -jreq-interactive;
+}
+
+.sidebar-item:selected {
+    -fx-background-color: -jreq-red-soft;
+    -fx-border-color: -jreq-red;
+    -fx-border-width: 0 0 0 2px;
+}
+
+.sidebar-item-marker {
+    -fx-min-width: 30px;
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-family: "Consolas", "Monospaced";
+    -fx-font-size: 10px;
+}
+
+.sidebar-item:selected .sidebar-item-marker,
+.sidebar-item:selected .sidebar-item-text {
+    -fx-text-fill: -jreq-text;
+}
+
+.workspace-split,
+.workspace-split > .split-pane-divider {
+    -fx-background-color: -jreq-subtle-border;
+    -fx-padding: 0;
+}
+
+.workspace-split > .split-pane-divider {
+    -fx-pref-height: 1px;
+}
+
+.request-panel,
+.response-panel {
+    -fx-background-color: -jreq-background;
+}
+
+.request-bar {
+    -fx-min-height: 60px;
+    -fx-padding: 10px 16px;
+    -fx-spacing: 8px;
+    -fx-background-color: -jreq-background;
+}
+
+.request-bar .combo-box,
+.request-bar .text-field,
+.send-button {
+    -fx-min-height: 40px;
+    -fx-pref-height: 40px;
+}
+
+.method-selector {
+    -fx-font-weight: 800;
+}
+
+.send-button {
+    -fx-min-width: 84px;
+    -fx-padding: 0 20px;
+}
+
+.workspace-tabs {
+    -fx-background-color: -jreq-background;
+    -fx-tab-min-height: 34px;
+    -fx-tab-max-height: 34px;
+}
+
+.workspace-tabs > .tab-header-area {
+    -fx-padding: 0 12px;
+}
+
+.workspace-tabs > .tab-header-area > .tab-header-background {
+    -fx-background-color: -jreq-background;
+    -fx-border-color: -jreq-subtle-border;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.workspace-tabs > .tab-header-area > .headers-region > .tab {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 2px 0;
+    -fx-padding: 0 12px;
+}
+
+.workspace-tabs > .tab-header-area > .headers-region > .tab:hover {
+    -fx-background-color: -jreq-surface;
+}
+
+.workspace-tabs > .tab-header-area > .headers-region > .tab:selected {
+    -fx-border-color: -jreq-red;
+}
+
+.workspace-tabs > .tab-header-area > .headers-region > .tab .tab-label {
+    -fx-text-fill: -jreq-text-secondary;
+    -fx-font-weight: 600;
+}
+
+.workspace-tabs > .tab-header-area > .headers-region > .tab:selected .tab-label {
+    -fx-text-fill: -jreq-text;
+}
+
+.workspace-tabs > .tab-content-area {
+    -fx-background-color: -jreq-background;
+}
+
+.key-value-editor {
+    -fx-spacing: 10px;
+    -fx-alignment: TOP_LEFT;
+}
+
+.key-value-rows {
+    -fx-spacing: 6px;
+}
+
+.key-value-row {
+    -fx-spacing: 8px;
+}
+
+.key-value-row .text-field {
+    -fx-min-height: 36px;
+    -fx-pref-height: 36px;
+}
+
+.key-value-row .check-box {
+    -fx-min-width: 24px;
+}
+
+.response-heading {
+    -fx-min-height: 48px;
+    -fx-padding: 0 16px;
+    -fx-border-color: -jreq-subtle-border;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.panel-title {
+    -fx-font-size: 15px;
+    -fx-font-weight: 700;
+}
+
+.response-metadata {
+    -fx-spacing: 10px;
+}
+
+.response-metadata .hbox {
+    -fx-spacing: 5px;
+}
+
+.metadata-name {
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 11px;
+}
+
+.metadata-value {
+    -fx-text-fill: -jreq-text-secondary;
+    -fx-font-family: "Consolas", "Monospaced";
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
+.metadata-divider {
+    -fx-text-fill: -jreq-border;
+}
+
+.status-success {
+    -fx-text-fill: -jreq-success;
+}
+
+.status-error {
+    -fx-text-fill: -jreq-error;
+}
+
+.code-area {
+    -fx-background-color: -jreq-background;
+    -fx-border-color: transparent;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-font-size: 12px;
+}
+
+.code-area .content {
+    -fx-background-color: -jreq-background;
+    -fx-padding: 12px 16px;
+}
+
+.empty-state {
+    -fx-padding: 24px;
+    -fx-spacing: 6px;
+}
+
+.empty-state-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: 700;
+}
+
+.status-bar {
+    -fx-min-height: 28px;
+    -fx-pref-height: 28px;
+    -fx-padding: 0 12px;
+    -fx-spacing: 8px;
+    -fx-background-color: -jreq-surface;
+    -fx-border-color: -jreq-subtle-border;
+    -fx-border-width: 1px 0 0 0;
+    -fx-font-size: 11px;
+}
+
+.connection-indicator {
+    -fx-text-fill: -jreq-success;
+    -fx-font-size: 9px;
+}

@@ -1,0 +1,60 @@
+.layout-compact .top-bar {
+    -fx-padding: 0 8px;
+}
+
+.layout-compact .request-bar {
+    -fx-padding: 8px;
+    -fx-spacing: 6px;
+}
+
+.layout-compact .request-bar .method-selector {
+    -fx-pref-width: 88px;
+    -fx-max-width: 88px;
+}
+
+.layout-compact .send-button {
+    -fx-min-width: 68px;
+    -fx-padding: 0 12px;
+}
+
+.layout-compact .response-heading {
+    -fx-padding: 0 10px;
+}
+
+.layout-compact .response-metadata {
+    -fx-spacing: 6px;
+}
+
+.layout-compact .metadata-name,
+.layout-compact .metadata-divider,
+.layout-compact .wide-only {
+    -fx-opacity: 0;
+}
+
+.layout-compact .workspace-tabs > .tab-header-area {
+    -fx-padding: 0 4px;
+}
+
+.layout-compact .workspace-tabs > .tab-header-area > .headers-region > .tab {
+    -fx-padding: 0 8px;
+}
+
+.layout-normal .sidebar {
+    -fx-pref-width: 224px;
+}
+
+.layout-wide .sidebar {
+    -fx-pref-width: 264px;
+}
+
+.layout-wide .request-bar {
+    -fx-padding: 12px 24px;
+}
+
+.layout-wide .send-button {
+    -fx-min-width: 96px;
+}
+
+.layout-wide .response-heading {
+    -fx-padding: 0 24px;
+}
