@@ -8,6 +8,7 @@ import com.jreq.request.domain.RequestLocation;
 import com.jreq.request.infrastructure.persistence.JdbcCollectionRepository;
 import com.jreq.request.infrastructure.persistence.JdbcRequestHistoryRepository;
 import com.jreq.request.infrastructure.persistence.JdbcSavedRequestRepository;
+import com.jreq.shared.database.JdbcTransactionManager;
 import com.jreq.shared.database.SqliteConnectionFactory;
 import com.jreq.shared.concurrent.ExecutorServiceTaskExecutor;
 import com.jreq.shared.exception.ErrorCategory;
@@ -38,14 +39,15 @@ class WorkspaceServiceTest {
         SqliteConnectionFactory factory = new SqliteConnectionFactory(temporaryDirectory.resolve("service.db"));
         new DatabaseInitializer(factory).initialize();
         var mapper = JReqObjectMapper.create();
+        var transactionManager = new JdbcTransactionManager(factory);
         databaseExecutor = ExecutorServiceTaskExecutor.singleThread("workspace-service-test-database");
         HttpExecutor httpExecutor = request -> CompletableFuture.completedFuture(
                 new HttpResponseFailure(
                         ErrorCategory.TIMEOUT, "The request timed out.", Duration.ofSeconds(1)));
         service = new WorkspaceService(
-                new JdbcCollectionRepository(factory, mapper),
+                new JdbcCollectionRepository(factory, transactionManager, mapper),
                 new JdbcSavedRequestRepository(factory, mapper),
-                new JdbcRequestHistoryRepository(factory, mapper),
+                new JdbcRequestHistoryRepository(factory, transactionManager, mapper),
                 httpExecutor,
                 databaseExecutor);
     }

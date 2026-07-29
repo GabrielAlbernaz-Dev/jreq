@@ -12,6 +12,7 @@ import com.jreq.request.infrastructure.persistence.JdbcRequestHistoryRepository;
 import com.jreq.request.infrastructure.persistence.JdbcSavedRequestRepository;
 import com.jreq.request.presentation.MainController;
 import com.jreq.request.presentation.MainViewModel;
+import com.jreq.shared.database.JdbcTransactionManager;
 import com.jreq.shared.database.SqliteConnectionFactory;
 import com.jreq.shared.concurrent.ExecutorServiceTaskExecutor;
 import com.jreq.shared.json.JReqObjectMapper;
@@ -45,11 +46,14 @@ public final class ApplicationContext implements AutoCloseable {
 
         ObjectMapper objectMapper = JReqObjectMapper.create();
         SqliteConnectionFactory connectionFactory = new SqliteConnectionFactory(directories.databasePath());
+        JdbcTransactionManager transactionManager = new JdbcTransactionManager(connectionFactory);
         new DatabaseInitializer(connectionFactory).initialize();
 
         SavedRequestRepository repository = new JdbcSavedRequestRepository(connectionFactory, objectMapper);
-        CollectionRepository collectionRepository = new JdbcCollectionRepository(connectionFactory, objectMapper);
-        RequestHistoryRepository historyRepository = new JdbcRequestHistoryRepository(connectionFactory, objectMapper);
+        CollectionRepository collectionRepository =
+                new JdbcCollectionRepository(connectionFactory, transactionManager, objectMapper);
+        RequestHistoryRepository historyRepository =
+                new JdbcRequestHistoryRepository(connectionFactory, transactionManager, objectMapper);
         HttpExecutor executor = new JavaHttpExecutor(Duration.ofSeconds(30));
         ExecutorServiceTaskExecutor databaseExecutor =
                 ExecutorServiceTaskExecutor.singleThread("jreq-database");

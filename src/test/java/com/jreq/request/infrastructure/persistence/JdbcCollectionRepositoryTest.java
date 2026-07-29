@@ -6,6 +6,7 @@ import com.jreq.request.domain.HttpRequestDefinition;
 import com.jreq.request.domain.RequestBody;
 import com.jreq.request.domain.RequestCollection;
 import com.jreq.request.domain.RequestLocation;
+import com.jreq.shared.database.JdbcTransactionManager;
 import com.jreq.shared.database.SqliteConnectionFactory;
 import com.jreq.shared.exception.JReqException;
 import com.jreq.shared.json.JReqObjectMapper;
@@ -32,7 +33,8 @@ class JdbcCollectionRepositoryTest {
     void setUp() {
         SqliteConnectionFactory factory = new SqliteConnectionFactory(temporaryDirectory.resolve("workspace.db"));
         new DatabaseInitializer(factory).initialize();
-        collections = new JdbcCollectionRepository(factory, JReqObjectMapper.create());
+        collections = new JdbcCollectionRepository(
+                factory, new JdbcTransactionManager(factory), JReqObjectMapper.create());
         requests = new JdbcSavedRequestRepository(factory, JReqObjectMapper.create());
     }
 

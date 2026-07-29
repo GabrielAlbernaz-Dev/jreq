@@ -106,7 +106,7 @@ src/main/java/com/jreq/
 │   └── presentation/           ViewModel, UI coordination, dialogs, and sidebar rendering
 └── shared/
     ├── concurrent/             asynchronous task execution boundary
-    ├── database/               SQLite connection configuration
+    ├── database/               SQLite connection and transaction lifecycle
     ├── exception/              structured error categories
     ├── json/                   application ObjectMapper
     └── ui/                     responsive manager and reusable controls
@@ -169,7 +169,7 @@ The red accent is limited to Send, focus, selection, and small identity details.
 - HTTP and SQLite work never block the JavaFX Application Thread; UI properties are updated only after completion is marshalled back to JavaFX.
 - Error categories are user-safe; technical failures are logged without credentials, full URLs, headers, cookies, or bodies.
 - SQLite is the real persistence engine in both application and repository tests. Temporary files isolate tests without replacing the database technology.
-- JDBC repositories own their SQL, row mapping, and transaction boundaries. Shared statement execution and exception translation remove mechanical duplication; explicit transactions are limited to atomic multi-statement operations such as collection deletion and history trimming.
+- JDBC repositories own their SQL, row mapping, and transaction boundaries. `JdbcTransactionManager` centralizes connection, commit, rollback, and failure preservation; explicit transactions are limited to atomic multi-statement operations such as collection deletion and history trimming.
 - FXML describes the screen composition; reusable, stateful controls stay as focused Java classes.
 - Responsive thresholds are testable without opening a JavaFX window.
 

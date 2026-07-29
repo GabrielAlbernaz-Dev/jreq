@@ -8,6 +8,7 @@ import com.jreq.request.application.HttpResponseSuccess;
 import com.jreq.request.application.RequestHistoryRepository;
 import com.jreq.request.domain.HttpRequestDefinition;
 import com.jreq.request.domain.RequestHistoryEntry;
+import com.jreq.shared.database.JdbcTransactionManager;
 import com.jreq.shared.database.SqliteConnectionFactory;
 import com.jreq.shared.exception.ErrorCategory;
 
@@ -25,10 +26,16 @@ import java.util.UUID;
 
 public final class JdbcRequestHistoryRepository implements RequestHistoryRepository {
     private final SqliteConnectionFactory connectionFactory;
+    private final JdbcTransactionManager transactionManager;
     private final ObjectMapper objectMapper;
 
-    public JdbcRequestHistoryRepository(SqliteConnectionFactory connectionFactory, ObjectMapper objectMapper) {
+    public JdbcRequestHistoryRepository(
+            SqliteConnectionFactory connectionFactory,
+            JdbcTransactionManager transactionManager,
+            ObjectMapper objectMapper
+    ) {
         this.connectionFactory = Objects.requireNonNull(connectionFactory, "connectionFactory");
+        this.transactionManager = Objects.requireNonNull(transactionManager, "transactionManager");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
     }
 
@@ -44,31 +51,24 @@ public final class JdbcRequestHistoryRepository implements RequestHistoryReposit
                     error_code, request_json, response_json, created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
-        try (Connection connection = connectionFactory.openConnection()) {
-            connection.setAutoCommit(false);
-            try (PreparedStatement statement = connection.prepareStatement(insert)) {
-                bindEntry(statement, entry);
-                statement.executeUpdate();
-                try (PreparedStatement trim = connection.prepareStatement("""
-                        DELETE FROM request_history
-                        WHERE id NOT IN (
-                            SELECT id FROM request_history
-                            ORDER BY created_at DESC, rowid DESC
-                            LIMIT ?
-                        )
-                        """)) {
-                    trim.setInt(1, maximumEntries);
-                    trim.executeUpdate();
+        try {
+            transactionManager.run(connection -> {
+                try (PreparedStatement statement = connection.prepareStatement(insert)) {
+                    bindEntry(statement, entry);
+                    statement.executeUpdate();
+                    try (PreparedStatement trim = connection.prepareStatement("""
+                            DELETE FROM request_history
+                            WHERE id NOT IN (
+                                SELECT id FROM request_history
+                                ORDER BY created_at DESC, rowid DESC
+                                LIMIT ?
+                            )
+                            """)) {
+                        trim.setInt(1, maximumEntries);
+                        trim.executeUpdate();
+                    }
                 }
-                connection.commit();
-            } catch (SQLException | JsonProcessingException exception) {
-                try {
-                    connection.rollback();
-                } catch (SQLException rollbackFailure) {
-                    exception.addSuppressed(rollbackFailure);
-                }
-                throw exception;
-            }
+            });
         } catch (JsonProcessingException exception) {
             throw PersistenceExceptionMapper.serialization(exception, "Unable to serialize request history");
         } catch (SQLException exception) {

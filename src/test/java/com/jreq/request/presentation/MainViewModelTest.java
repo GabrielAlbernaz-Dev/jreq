@@ -14,6 +14,7 @@ import com.jreq.request.domain.SavedRequest;
 import com.jreq.request.infrastructure.persistence.JdbcCollectionRepository;
 import com.jreq.request.infrastructure.persistence.JdbcRequestHistoryRepository;
 import com.jreq.request.infrastructure.persistence.JdbcSavedRequestRepository;
+import com.jreq.shared.database.JdbcTransactionManager;
 import com.jreq.shared.database.SqliteConnectionFactory;
 import com.jreq.shared.concurrent.ExecutorServiceTaskExecutor;
 import com.jreq.shared.exception.ErrorCategory;
@@ -44,11 +45,12 @@ class MainViewModelTest {
         SqliteConnectionFactory factory = new SqliteConnectionFactory(temporaryDirectory.resolve("view-model.db"));
         new DatabaseInitializer(factory).initialize();
         var mapper = JReqObjectMapper.create();
+        var transactionManager = new JdbcTransactionManager(factory);
         databaseExecutor = ExecutorServiceTaskExecutor.singleThread("view-model-test-database");
         WorkspaceService service = new WorkspaceService(
-                new JdbcCollectionRepository(factory, mapper),
+                new JdbcCollectionRepository(factory, transactionManager, mapper),
                 new JdbcSavedRequestRepository(factory, mapper),
-                new JdbcRequestHistoryRepository(factory, mapper),
+                new JdbcRequestHistoryRepository(factory, transactionManager, mapper),
                 request -> CompletableFuture.completedFuture(new HttpResponseFailure(
                         ErrorCategory.UNKNOWN, "Failure", Duration.ZERO)),
                 databaseExecutor);

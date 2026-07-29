@@ -7,6 +7,7 @@ import com.jreq.request.domain.HttpMethod;
 import com.jreq.request.domain.HttpRequestDefinition;
 import com.jreq.request.domain.RequestBody;
 import com.jreq.request.domain.RequestHistoryEntry;
+import com.jreq.shared.database.JdbcTransactionManager;
 import com.jreq.shared.database.SqliteConnectionFactory;
 import com.jreq.shared.exception.ErrorCategory;
 import com.jreq.shared.json.JReqObjectMapper;
@@ -34,7 +35,8 @@ class JdbcRequestHistoryRepositoryTest {
     void setUp() {
         SqliteConnectionFactory factory = new SqliteConnectionFactory(temporaryDirectory.resolve("history.db"));
         new DatabaseInitializer(factory).initialize();
-        repository = new JdbcRequestHistoryRepository(factory, JReqObjectMapper.create());
+        repository = new JdbcRequestHistoryRepository(
+                factory, new JdbcTransactionManager(factory), JReqObjectMapper.create());
     }
 
     @Test

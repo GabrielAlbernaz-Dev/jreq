@@ -6,6 +6,7 @@ import com.jreq.request.application.CollectionRepository;
 import com.jreq.request.domain.HttpRequestDefinition;
 import com.jreq.request.domain.RequestCollection;
 import com.jreq.request.domain.WorkspaceName;
+import com.jreq.shared.database.JdbcTransactionManager;
 import com.jreq.shared.database.SqliteConnectionFactory;
 
 import java.sql.Connection;
@@ -24,10 +25,16 @@ import java.util.UUID;
 public final class JdbcCollectionRepository implements CollectionRepository {
     private static final String SELECT_COLUMNS = "SELECT id, name, created_at, updated_at FROM collection";
     private final SqliteConnectionFactory connectionFactory;
+    private final JdbcTransactionManager transactionManager;
     private final ObjectMapper objectMapper;
 
-    public JdbcCollectionRepository(SqliteConnectionFactory connectionFactory, ObjectMapper objectMapper) {
+    public JdbcCollectionRepository(
+            SqliteConnectionFactory connectionFactory,
+            JdbcTransactionManager transactionManager,
+            ObjectMapper objectMapper
+    ) {
         this.connectionFactory = Objects.requireNonNull(connectionFactory, "connectionFactory");
+        this.transactionManager = Objects.requireNonNull(transactionManager, "transactionManager");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
     }
 
@@ -92,9 +99,8 @@ public final class JdbcCollectionRepository implements CollectionRepository {
     @Override
     public void deleteById(UUID id, boolean deleteContainedRequests) {
         Objects.requireNonNull(id, "id");
-        try (Connection connection = connectionFactory.openConnection()) {
-            connection.setAutoCommit(false);
-            try {
+        try {
+            transactionManager.run(connection -> {
                 if (deleteContainedRequests) {
                     removeContainedRequests(connection, id);
                 } else {
@@ -104,18 +110,10 @@ public final class JdbcCollectionRepository implements CollectionRepository {
                         connection,
                         "DELETE FROM collection WHERE id = ?",
                         statement -> statement.setString(1, id.toString()));
-                connection.commit();
-            } catch (SQLException exception) {
-                rollback(connection, exception);
-                throw PersistenceExceptionMapper.database(exception, "Unable to delete the collection");
-            } catch (JsonProcessingException exception) {
-                rollback(connection, exception);
-                throw PersistenceExceptionMapper.serialization(
-                        exception, "Unable to update requests while deleting the collection");
-            } catch (RuntimeException exception) {
-                rollback(connection, exception);
-                throw exception;
-            }
+            });
+        } catch (JsonProcessingException exception) {
+            throw PersistenceExceptionMapper.serialization(
+                    exception, "Unable to update requests while deleting the collection");
         } catch (SQLException exception) {
             throw PersistenceExceptionMapper.database(exception, "Unable to delete the collection");
         }
@@ -203,14 +201,6 @@ public final class JdbcCollectionRepository implements CollectionRepository {
                 statement.addBatch();
             }
             statement.executeBatch();
-        }
-    }
-
-    private void rollback(Connection connection, Throwable originalFailure) {
-        try {
-            connection.rollback();
-        } catch (SQLException rollbackFailure) {
-            originalFailure.addSuppressed(rollbackFailure);
         }
     }
 
