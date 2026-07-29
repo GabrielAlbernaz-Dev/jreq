@@ -26,6 +26,13 @@ public final class JReqApplication extends Application {
         LOGGER.info("jREQ main window started");
     }
 
+    @Override
+    public void stop() {
+        if (applicationContext != null) {
+            applicationContext.close();
+        }
+    }
+
     public static void main(String[] args) {
         launch(args);
     }

@@ -1,8 +1,8 @@
 # jREQ
 
-**jREQ** is a lightweight, local-first desktop HTTP client inspired by Postman and Insomnia. This repository contains the first executable foundation: a responsive JavaFX workspace, immutable request model, asynchronous HTTP engine, SQLite persistence, Flyway migrations, and automated tests.
+**jREQ** is a lightweight, local-first desktop HTTP client inspired by Postman and Insomnia. It provides a responsive JavaFX workspace, immutable request model, asynchronous HTTP engine, SQLite persistence, Flyway migrations, and automated tests.
 
-The current UI is a functional foundation. It lets you choose an HTTP method, edit a URL, switch request and response tabs, add or remove key-value entries, and collapse the sidebar. The real HTTP executor is implemented and tested independently, but is intentionally not wired to the Send button yet.
+The workspace executes HTTP requests, renders response body/headers/raw data, saves requests individually or inside flat collections, and records both successful and failed executions. Collections, requests, and history can all be managed directly from the sidebar.
 
 ## Interface concept
 
@@ -10,13 +10,16 @@ The current UI is a functional foundation. It lets you choose an HTTP method, ed
 ┌──────────────────────────────────────────────────────────────────────┐
 │ ☰  jREQ  HTTP WORKSPACE                              Local      ⚙   │
 ├──────────────────┬───────────────────────────────────────────────────┤
-│ COLLECTIONS      │ GET   Enter request URL                    Send  │
-│ No saved requests├───────────────────────────────────────────────────┤
+│ COLLECTIONS   +  │ GET   Enter request URL          Save     Send  │
+│ ROOT             ├───────────────────────────────────────────────────┤
+│ GET Health       │ Params   Headers   Body   Auth                    │
+│ Local API        │                                                   │
+│   POST Create    │ enabled  key                 value                │
 │                  │ Params   Headers   Body   Auth                    │
 │                  │                                                   │
 │                  │ enabled  key                 value                │
 │ HISTORY          ├───────────────────────────────────────────────────┤
-│ No history yet   │ Response                         — · — · —        │
+│ GET Health       │ Response                       200 · 42 ms · 2 KB │
 │                  │ Body     Headers     Raw                          │
 │                  │                                                   │
 │ + New request    │ Send a request to view the response              │
@@ -27,8 +30,8 @@ The current UI is a functional foundation. It lets you choose an HTTP method, ed
 
 ## Stack
 
-- Java 21
-- JavaFX 21 with FXML and JavaFX CSS
+- Java 21+
+- JavaFX 21+ with FXML and JavaFX CSS
 - Maven
 - AtlantaFX (Primer Dark base theme)
 - Java `HttpClient` with `sendAsync`
@@ -63,6 +66,8 @@ The initial window is 1280×800 and remains usable down to 760×560. Keyboard sh
 
 - `Ctrl/Cmd + Enter`: trigger request sending
 - `Ctrl/Cmd + B`: collapse or expand the sidebar
+- `Ctrl/Cmd + S`: save the current request
+- `Ctrl/Cmd + Shift + S`: save a copy of the current request
 
 ## Test
 
@@ -94,12 +99,13 @@ src/main/java/com/jreq/
 │   └── SceneManager.java
 ├── request/
 │   ├── domain/                 immutable request/body/value models
-│   ├── application/            HTTP and repository ports + result types
+│   ├── application/            workspace service, ports, and result types
 │   ├── infrastructure/
 │   │   ├── http/               Java HttpClient implementation
-│   │   └── persistence/        JDBC saved-request repository
-│   └── presentation/           Main controller and ViewModel
+│   │   └── persistence/        JDBC collection, request, and history repositories
+│   └── presentation/           ViewModel, UI coordination, dialogs, and sidebar rendering
 └── shared/
+    ├── concurrent/             asynchronous task execution boundary
     ├── database/               SQLite connection configuration
     ├── exception/              structured error categories
     ├── json/                   application ObjectMapper
@@ -113,7 +119,7 @@ src/main/resources/
 └── logback.xml
 ```
 
-`ApplicationContext` is the composition root. It creates the mapper, database connection factory, migrations, repository, executor, ViewModel, and controller factory without exposing global mutable state. Controllers perform UI coordination only; they do not execute SQL or build HTTP requests directly.
+`ApplicationContext` is the composition root. It creates the mapper, database connection factory, migrations, repositories, HTTP executor, dedicated database executor, workspace service, ViewModel, and controller factory without exposing global mutable state. Controllers perform UI coordination only; they do not execute SQL or build HTTP requests directly.
 
 ## Local database
 
@@ -125,7 +131,9 @@ The data directory is created automatically on startup and never points into `sr
 | Linux | `${XDG_DATA_HOME}/jreq/jreq.db`, or `~/.local/share/jreq/jreq.db` |
 | macOS | `~/Library/Application Support/jREQ/jreq.db` |
 
-Each SQLite connection enables foreign keys, WAL journal mode, and a 5000 ms busy timeout. Flyway creates `app_setting`, `collection`, `saved_request`, and `request_history`; request definitions are stored as JSON while IDs, names, methods, URLs, collection links, and timestamps stay queryable.
+Each SQLite connection enables foreign keys, WAL journal mode, and a 5000 ms busy timeout. Flyway creates `app_setting`, `collection`, `saved_request`, and `request_history`; request definitions and history snapshots are stored as JSON while IDs, names, methods, URLs, collection links, outcomes, and timestamps stay queryable.
+
+Collection names are unique, ignoring case. Request names are unique within their location: each collection and the root have independent namespaces. Deleting a collection moves its requests to the root by default; an explicit checkbox deletes them instead. Name collisions created by a move are resolved with numeric suffixes. History retains the 100 newest attempts and stores both successful responses and structured failures.
 
 ## Responsive behavior
 
@@ -155,11 +163,13 @@ The red accent is limited to Send, focus, selection, and small identity details.
 
 ## Technical decisions
 
-- Request definitions and value objects are immutable records with defensive copies.
+- Request definitions and value objects are immutable records with defensive copies; `WorkspaceName` owns trimming, validation, and case-insensitive comparison for collection and request names.
 - `RequestBody` is a compact discriminated model for none, JSON, and raw text; no hierarchy is needed yet.
 - HTTP calls return a sealed success/failure result and stay asynchronous from end to end.
+- HTTP and SQLite work never block the JavaFX Application Thread; UI properties are updated only after completion is marshalled back to JavaFX.
 - Error categories are user-safe; technical failures are logged without credentials, full URLs, headers, cookies, or bodies.
 - SQLite is the real persistence engine in both application and repository tests. Temporary files isolate tests without replacing the database technology.
+- JDBC repositories own their SQL, row mapping, and transaction boundaries. Shared statement execution and exception translation remove mechanical duplication; explicit transactions are limited to atomic multi-statement operations such as collection deletion and history trimming.
 - FXML describes the screen composition; reusable, stateful controls stay as focused Java classes.
 - Responsive thresholds are testable without opening a JavaFX window.
 
@@ -167,12 +177,10 @@ The red accent is limited to Send, focus, selection, and small identity details.
 
 JavaFX makes jREQ a genuinely native desktop application while keeping Java as the single implementation stack. A native client is not constrained by browser CORS, integrates directly with local SQLite, and can later be distributed as platform-specific application images and installers through `jlink` and `jpackage`.
 
-## Initial roadmap
+## Roadmap
 
-1. Wire the real `HttpExecutor` to the ViewModel and render structured failures.
-2. Add save, collection, and history use cases on top of the current repositories.
-3. Add environment-variable interpolation without persisting credentials.
-4. Persist window and sidebar preferences in `app_setting`.
-5. Add import/export for a small jREQ JSON format.
-6. Normalize third-party modules and validate `jlink`/`jpackage` images in a platform CI matrix.
-7. Add UI smoke tests for compact, normal, and wide viewport snapshots.
+1. Add environment-variable interpolation without persisting credentials.
+2. Persist window, sidebar, and collection-expansion preferences in `app_setting`.
+3. Add import/export for a small jREQ JSON format.
+4. Normalize third-party modules and validate `jlink`/`jpackage` images in a platform CI matrix.
+5. Add UI smoke tests for compact, normal, and wide viewport snapshots.

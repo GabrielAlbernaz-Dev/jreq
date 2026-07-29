@@ -15,7 +15,7 @@ public record HttpRequestDefinition(
 ) {
     public HttpRequestDefinition {
         Objects.requireNonNull(id, "id");
-        name = Objects.requireNonNull(name, "name");
+        name = WorkspaceName.require(name);
         Objects.requireNonNull(method, "method");
         url = Objects.requireNonNull(url, "url");
         queryParameters = List.copyOf(Objects.requireNonNull(queryParameters, "queryParameters"));

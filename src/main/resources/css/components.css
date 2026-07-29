@@ -126,6 +126,81 @@
     -fx-spacing: 2px;
 }
 
+.sidebar-scroll,
+.sidebar-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.sidebar-scroll {
+    -fx-padding: 0;
+}
+
+.history-scroll {
+    -fx-min-height: 96px;
+}
+
+.sidebar-group-label {
+    -fx-padding: 6px 8px 4px 8px;
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 9px;
+    -fx-font-weight: 800;
+}
+
+.sidebar-group,
+.collections-list,
+.collection-requests {
+    -fx-spacing: 2px;
+}
+
+.collections-list {
+    -fx-padding: 8px 0 0 0;
+}
+
+.collection-group {
+    -fx-spacing: 2px;
+}
+
+.collection-heading {
+    -fx-min-height: 32px;
+    -fx-padding: 0 8px 0 5px;
+    -fx-spacing: 7px;
+    -fx-background-radius: 3px;
+    -fx-cursor: hand;
+}
+
+.collection-heading:hover {
+    -fx-background-color: -jreq-interactive;
+}
+
+.collection-disclosure,
+.collection-count {
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 10px;
+}
+
+.collection-name {
+    -fx-text-fill: -jreq-text-secondary;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.collection-requests {
+    -fx-padding: 0 0 3px 10px;
+}
+
+.quiet-action {
+    -fx-padding: 3px 6px;
+    -fx-background-color: transparent;
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 10px;
+}
+
+.quiet-action:hover {
+    -fx-text-fill: -jreq-text;
+    -fx-background-color: -jreq-interactive;
+}
+
 .sidebar-empty-label {
     -fx-padding: 8px;
     -fx-text-fill: -jreq-text-disabled;
@@ -177,6 +252,29 @@
     -fx-background-color: -jreq-background;
 }
 
+.editor-context-row {
+    -fx-min-height: 30px;
+    -fx-padding: 6px 16px 0 16px;
+    -fx-spacing: 7px;
+}
+
+.request-name {
+    -fx-text-fill: -jreq-text-secondary;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.dirty-indicator {
+    -fx-text-fill: -jreq-red;
+    -fx-font-size: 8px;
+}
+
+.location-label {
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 9px;
+    -fx-font-weight: 800;
+}
+
 .request-bar {
     -fx-min-height: 60px;
     -fx-padding: 10px 16px;
@@ -186,9 +284,70 @@
 
 .request-bar .combo-box,
 .request-bar .text-field,
+.request-bar .split-menu-button,
 .send-button {
     -fx-min-height: 40px;
     -fx-pref-height: 40px;
+}
+
+.save-button {
+    -fx-min-width: 94px;
+    -fx-pref-width: 94px;
+    -fx-max-width: 94px;
+    -fx-max-height: 40px;
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+
+.save-button > .label,
+.save-button > .arrow-button {
+    -fx-min-height: 40px;
+    -fx-pref-height: 40px;
+    -fx-max-height: 40px;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
+}
+
+.save-button > .label {
+    -fx-alignment: CENTER;
+    -fx-padding: 0 10px 0 12px;
+    -fx-background-color: transparent;
+    -fx-background-radius: 3px 0 0 3px;
+    -fx-border-color: -jreq-border;
+    -fx-border-width: 1px 0 1px 1px;
+    -fx-border-radius: 3px 0 0 3px;
+    -fx-text-fill: -jreq-text-secondary;
+}
+
+.save-button > .arrow-button {
+    -fx-padding: 0 9px;
+    -fx-background-color: transparent;
+    -fx-background-radius: 0 3px 3px 0;
+    -fx-border-color: -jreq-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 0 3px 3px 0;
+}
+
+.save-button > .arrow-button > .arrow {
+    -fx-background-color: -jreq-text-secondary;
+    -fx-padding: 3px;
+}
+
+.save-button > .label:hover,
+.save-button > .arrow-button:hover {
+    -fx-background-color: -jreq-interactive;
+    -fx-text-fill: -jreq-text;
+}
+
+.save-button > .arrow-button:hover > .arrow {
+    -fx-background-color: -jreq-text;
+}
+
+.body-type-selector {
+    -fx-pref-width: 128px;
 }
 
 .method-selector {

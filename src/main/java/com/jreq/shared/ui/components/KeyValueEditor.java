@@ -12,9 +12,14 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
+
 public final class KeyValueEditor extends VBox {
     private final KeyValueEditorModel model = new KeyValueEditorModel();
     private final VBox rows = new VBox();
+    private Consumer<List<KeyValueEntry>> onChange = entries -> { };
 
     public KeyValueEditor() {
         getStyleClass().add("key-value-editor");
@@ -25,6 +30,7 @@ public final class KeyValueEditor extends VBox {
         addButton.setOnAction(event -> {
             model.addEntry();
             renderRows();
+            notifyChanged();
         });
         getChildren().addAll(rows, addButton);
         renderRows();
@@ -32,6 +38,15 @@ public final class KeyValueEditor extends VBox {
 
     public KeyValueEditorModel model() {
         return model;
+    }
+
+    public void setEntries(List<KeyValueEntry> entries) {
+        model.replaceEntries(entries);
+        renderRows();
+    }
+
+    public void setOnChange(Consumer<List<KeyValueEntry>> action) {
+        onChange = Objects.requireNonNull(action, "action");
     }
 
     private void renderRows() {
@@ -65,9 +80,13 @@ public final class KeyValueEditor extends VBox {
         remove.setOnAction(event -> {
             model.remove(entry.id());
             renderRows();
+            notifyChanged();
         });
 
-        Runnable update = () -> model.update(entry.id(), key.getText(), value.getText(), enabled.isSelected());
+        Runnable update = () -> {
+            model.update(entry.id(), key.getText(), value.getText(), enabled.isSelected());
+            notifyChanged();
+        };
         key.textProperty().addListener((observable, oldValue, newValue) -> update.run());
         value.textProperty().addListener((observable, oldValue, newValue) -> update.run());
         enabled.selectedProperty().addListener((observable, oldValue, newValue) -> update.run());
@@ -76,5 +95,9 @@ public final class KeyValueEditor extends VBox {
         row.setAlignment(Pos.CENTER_LEFT);
         row.getStyleClass().add("key-value-row");
         return row;
+    }
+
+    private void notifyChanged() {
+        onChange.accept(model.entries());
     }
 }
