@@ -1,8 +1,8 @@
 package com.jreq.bootstrap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jreq.request.application.HttpExecutor;
 import com.jreq.request.application.CollectionRepository;
+import com.jreq.request.application.HttpExecutor;
 import com.jreq.request.application.RequestHistoryRepository;
 import com.jreq.request.application.SavedRequestRepository;
 import com.jreq.request.application.WorkspaceService;
@@ -17,50 +17,70 @@ import com.jreq.shared.database.SqliteConnectionFactory;
 import com.jreq.shared.concurrent.ExecutorServiceTaskExecutor;
 import com.jreq.shared.json.JReqObjectMapper;
 
-import java.time.Duration;
-
 public final class ApplicationContext implements AutoCloseable {
-    private final ObjectMapper objectMapper;
-    private final SavedRequestRepository savedRequestRepository;
-    private final HttpExecutor httpExecutor;
+    private static final String DATABASE_THREAD_NAME = "jreq-database";
+
+    private final ApplicationConfiguration configuration;
     private final MainViewModel mainViewModel;
     private final ExecutorServiceTaskExecutor databaseExecutor;
 
     private ApplicationContext(
-            ObjectMapper objectMapper,
-            SavedRequestRepository savedRequestRepository,
-            HttpExecutor httpExecutor,
+            ApplicationConfiguration configuration,
             MainViewModel mainViewModel,
             ExecutorServiceTaskExecutor databaseExecutor
     ) {
-        this.objectMapper = objectMapper;
-        this.savedRequestRepository = savedRequestRepository;
-        this.httpExecutor = httpExecutor;
+        this.configuration = configuration;
         this.mainViewModel = mainViewModel;
         this.databaseExecutor = databaseExecutor;
     }
 
     public static ApplicationContext create() {
+        ApplicationConfiguration configuration = ApplicationConfiguration.load();
+        PersistenceComponents persistence = initializePersistence(configuration);
+        ExecutorServiceTaskExecutor databaseExecutor =
+                ExecutorServiceTaskExecutor.singleThread(DATABASE_THREAD_NAME);
+        try {
+            return composeApplication(configuration, persistence, databaseExecutor);
+        } catch (RuntimeException | Error failure) {
+            databaseExecutor.close();
+            throw failure;
+        }
+    }
+
+    private static PersistenceComponents initializePersistence(ApplicationConfiguration configuration) {
         AppDirectories directories = AppDirectories.systemDefault();
         directories.ensureDataDirectory();
 
         ObjectMapper objectMapper = JReqObjectMapper.create();
-        SqliteConnectionFactory connectionFactory = new SqliteConnectionFactory(directories.databasePath());
-        JdbcTransactionManager transactionManager = new JdbcTransactionManager(connectionFactory);
+        SqliteConnectionFactory connectionFactory = new SqliteConnectionFactory(
+                directories.databasePath(configuration.databaseFilename()));
         new DatabaseInitializer(connectionFactory).initialize();
+        JdbcTransactionManager transactionManager = new JdbcTransactionManager(connectionFactory);
 
-        SavedRequestRepository repository = new JdbcSavedRequestRepository(connectionFactory, objectMapper);
         CollectionRepository collectionRepository =
                 new JdbcCollectionRepository(connectionFactory, transactionManager, objectMapper);
+        SavedRequestRepository savedRequestRepository =
+                new JdbcSavedRequestRepository(connectionFactory, objectMapper);
         RequestHistoryRepository historyRepository =
                 new JdbcRequestHistoryRepository(connectionFactory, transactionManager, objectMapper);
-        HttpExecutor executor = new JavaHttpExecutor(Duration.ofSeconds(30));
-        ExecutorServiceTaskExecutor databaseExecutor =
-                ExecutorServiceTaskExecutor.singleThread("jreq-database");
+
+        return new PersistenceComponents(
+                collectionRepository, savedRequestRepository, historyRepository);
+    }
+
+    private static ApplicationContext composeApplication(
+            ApplicationConfiguration configuration,
+            PersistenceComponents persistence,
+            ExecutorServiceTaskExecutor databaseExecutor
+    ) {
+        HttpExecutor httpExecutor = new JavaHttpExecutor(configuration.httpTimeout());
         WorkspaceService workspaceService = new WorkspaceService(
-                collectionRepository, repository, historyRepository, executor, databaseExecutor);
-        return new ApplicationContext(
-                objectMapper, repository, executor, new MainViewModel(workspaceService), databaseExecutor);
+                persistence.collections(),
+                persistence.savedRequests(),
+                persistence.history(),
+                httpExecutor,
+                databaseExecutor);
+        return new ApplicationContext(configuration, new MainViewModel(workspaceService), databaseExecutor);
     }
 
     public Object createController(Class<?> controllerType) {
@@ -70,20 +90,19 @@ public final class ApplicationContext implements AutoCloseable {
         throw new IllegalArgumentException("Unsupported FXML controller: " + controllerType.getName());
     }
 
-    public ObjectMapper objectMapper() {
-        return objectMapper;
-    }
-
-    public SavedRequestRepository savedRequestRepository() {
-        return savedRequestRepository;
-    }
-
-    public HttpExecutor httpExecutor() {
-        return httpExecutor;
+    String windowTitle() {
+        return configuration.windowTitle();
     }
 
     @Override
     public void close() {
         databaseExecutor.close();
+    }
+
+    private record PersistenceComponents(
+            CollectionRepository collections,
+            SavedRequestRepository savedRequests,
+            RequestHistoryRepository history
+    ) {
     }
 }
