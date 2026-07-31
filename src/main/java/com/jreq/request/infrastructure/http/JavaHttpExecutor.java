@@ -55,7 +55,7 @@ public final class JavaHttpExecutor implements HttpExecutor {
         try {
             URI uri = URI.create(buildUrl(definition));
             request = createRequest(definition, uri);
-            LOGGER.debug("Executing {} request to {}://{}", definition.method(), uri.getScheme(), uri.getHost());
+            LOGGER.debug("Executing {} request", definition.method());
         } catch (IllegalArgumentException exception) {
             return CompletableFuture.completedFuture(new HttpResponseFailure(
                     ErrorCategory.INVALID_URL,

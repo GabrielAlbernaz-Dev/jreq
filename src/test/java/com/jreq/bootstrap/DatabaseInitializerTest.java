@@ -32,7 +32,10 @@ class DatabaseInitializerTest {
         try (Connection connection = factory.openConnection();
              Statement statement = connection.createStatement()) {
             assertThat(tableNames(statement))
-                    .contains("app_setting", "collection", "saved_request", "request_history", "flyway_schema_history");
+                    .contains(
+                            "app_setting", "collection", "saved_request", "request_history",
+                            "environment", "environment_variable", "global_variable",
+                            "environment_selection", "flyway_schema_history");
             assertThat(pragmaValue(statement, "foreign_keys")).isEqualTo("1");
             assertThat(pragmaValue(statement, "journal_mode")).isEqualToIgnoringCase("wal");
             assertThat(pragmaValue(statement, "busy_timeout")).isEqualTo("5000");

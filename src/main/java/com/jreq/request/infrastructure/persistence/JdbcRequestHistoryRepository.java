@@ -7,6 +7,10 @@ import com.jreq.request.application.HttpResponseResult;
 import com.jreq.request.application.HttpResponseSuccess;
 import com.jreq.request.application.RequestHistoryRepository;
 import com.jreq.request.domain.HttpRequestDefinition;
+import com.jreq.request.domain.EnvironmentScope;
+import com.jreq.request.domain.HistoryEnvironmentReference;
+import com.jreq.request.domain.HistoryExecutionContext;
+import com.jreq.request.domain.RequestLocation;
 import com.jreq.request.domain.RequestHistoryEntry;
 import com.jreq.shared.database.JdbcTransactionManager;
 import com.jreq.shared.database.SqliteConnectionFactory;
@@ -48,8 +52,9 @@ public final class JdbcRequestHistoryRepository implements RequestHistoryReposit
         String insert = """
                 INSERT INTO request_history (
                     id, name, method, url, status_code, duration_ms, response_size,
-                    error_code, request_json, response_json, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    error_code, request_json, response_json, created_at,
+                    request_collection_id, environment_id, environment_name, environment_collection_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         try {
             transactionManager.run(connection -> {
@@ -82,7 +87,8 @@ public final class JdbcRequestHistoryRepository implements RequestHistoryReposit
             throw new IllegalArgumentException("limit must be positive");
         }
         String sql = """
-                SELECT id, name, request_json, response_json, error_code, created_at
+                SELECT id, name, request_json, response_json, error_code, created_at,
+                       request_collection_id, environment_id, environment_name, environment_collection_id
                 FROM request_history
                 ORDER BY created_at DESC, rowid DESC
                 LIMIT ?
@@ -148,6 +154,29 @@ public final class JdbcRequestHistoryRepository implements RequestHistoryReposit
         }
         statement.setString(9, objectMapper.writeValueAsString(entry.request()));
         statement.setString(11, entry.createdAt().toString());
+        bindExecutionContext(statement, entry.executionContext());
+    }
+
+    private void bindExecutionContext(PreparedStatement statement, HistoryExecutionContext context)
+            throws SQLException {
+        if (context.location() instanceof RequestLocation.Collection collection) {
+            statement.setString(12, collection.collectionId().toString());
+        } else {
+            statement.setNull(12, Types.VARCHAR);
+        }
+        if (context.environment() instanceof HistoryEnvironmentReference.Selected selected) {
+            statement.setString(13, selected.id().toString());
+            statement.setString(14, selected.name());
+            if (selected.scope() instanceof EnvironmentScope.Collection collection) {
+                statement.setString(15, collection.collectionId().toString());
+            } else {
+                statement.setNull(15, Types.VARCHAR);
+            }
+        } else {
+            statement.setNull(13, Types.VARCHAR);
+            statement.setNull(14, Types.VARCHAR);
+            statement.setNull(15, Types.VARCHAR);
+        }
     }
 
     private RequestHistoryEntry map(ResultSet resultSet) throws SQLException, JsonProcessingException {
@@ -164,12 +193,27 @@ public final class JdbcRequestHistoryRepository implements RequestHistoryReposit
         } else {
             result = objectMapper.readValue(responseJson, HttpResponseFailure.class);
         }
+        String requestCollectionId = resultSet.getString("request_collection_id");
+        RequestLocation location = requestCollectionId == null
+                ? RequestLocation.root()
+                : RequestLocation.collection(UUID.fromString(requestCollectionId));
+        String environmentId = resultSet.getString("environment_id");
+        HistoryEnvironmentReference environment = environmentId == null
+                ? HistoryEnvironmentReference.none()
+                : HistoryEnvironmentReference.selected(
+                        UUID.fromString(environmentId),
+                        resultSet.getString("environment_name"),
+                        resultSet.getString("environment_collection_id") == null
+                                ? EnvironmentScope.global()
+                                : EnvironmentScope.collection(UUID.fromString(
+                                        resultSet.getString("environment_collection_id"))));
         return new RequestHistoryEntry(
                 UUID.fromString(resultSet.getString("id")),
                 resultSet.getString("name"),
                 request,
                 result,
-                Instant.parse(resultSet.getString("created_at"))
+                Instant.parse(resultSet.getString("created_at")),
+                new HistoryExecutionContext(location, environment)
         );
     }
 

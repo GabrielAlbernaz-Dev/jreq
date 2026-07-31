@@ -11,6 +11,11 @@
     -fx-padding: 5px 8px 0 8px;
 }
 
+.layout-compact .variable-feedback {
+    -fx-max-width: 210px;
+    -fx-text-overrun: ELLIPSIS;
+}
+
 .layout-compact .save-button {
     -fx-min-width: 84px;
     -fx-pref-width: 84px;

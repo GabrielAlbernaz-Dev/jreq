@@ -38,12 +38,7 @@
                 <Label text="REQ" styleClass="logo-text"/>
                 <Label text="HTTP WORKSPACE" styleClass="product-context,wide-only"/>
                 <Region HBox.hgrow="ALWAYS"/>
-                <MenuButton text="Local" styleClass="environment-menu">
-                    <items>
-                        <MenuItem text="Local"/>
-                        <MenuItem text="Manage environments…"/>
-                    </items>
-                </MenuButton>
+                <MenuButton fx:id="environmentMenu" text="Globals only" styleClass="environment-menu"/>
                 <Button text="⚙" styleClass="icon-button" accessibleText="Settings">
                     <tooltip><Tooltip text="Settings"/></tooltip>
                 </Button>
@@ -101,6 +96,7 @@
                                 <Label fx:id="dirtyIndicator" text="●" styleClass="dirty-indicator"/>
                                 <Label fx:id="requestNameLabel" text="Untitled Request" styleClass="request-name"/>
                                 <Region HBox.hgrow="ALWAYS"/>
+                                <Label fx:id="variableFeedbackLabel" styleClass="variable-feedback"/>
                                 <Label fx:id="requestLocationLabel" text="ROOT" styleClass="location-label"/>
                             </children>
                         </HBox>

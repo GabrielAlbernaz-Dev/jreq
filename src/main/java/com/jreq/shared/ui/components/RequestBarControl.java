@@ -1,6 +1,7 @@
 package com.jreq.shared.ui.components;
 
 import com.jreq.request.domain.HttpMethod;
+import com.jreq.request.application.VariableResolutionStatus;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
@@ -9,13 +10,12 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SplitMenuButton;
-import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 
 public final class RequestBarControl extends HBox {
     private final ComboBox<HttpMethod> methodSelector = new ComboBox<>();
-    private final TextField urlField = new TextField();
+    private final VariableHighlightingField urlField = new VariableHighlightingField();
     private final Button sendButton = new Button("Send");
     private final SplitMenuButton saveButton = new SplitMenuButton();
     private final MenuItem saveAsItem = new MenuItem("Save As…");
@@ -73,7 +73,10 @@ public final class RequestBarControl extends HBox {
     }
 
     public void requestUrlFocus() {
-        urlField.requestFocus();
-        urlField.selectAll();
+        urlField.requestEditorFocus();
+    }
+
+    public void setVariableResolutionStatus(VariableResolutionStatus status) {
+        urlField.setResolutionStatus(status);
     }
 }

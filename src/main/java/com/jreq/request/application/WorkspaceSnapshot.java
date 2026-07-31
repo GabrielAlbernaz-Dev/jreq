@@ -10,11 +10,24 @@ import java.util.Objects;
 public record WorkspaceSnapshot(
         List<RequestCollection> collections,
         List<SavedRequest> savedRequests,
-        List<RequestHistoryEntry> history
+        List<RequestHistoryEntry> history,
+        EnvironmentConfiguration environmentConfiguration,
+        List<EnvironmentActivation> environmentActivations
 ) {
     public WorkspaceSnapshot {
         collections = List.copyOf(Objects.requireNonNull(collections, "collections"));
         savedRequests = List.copyOf(Objects.requireNonNull(savedRequests, "savedRequests"));
         history = List.copyOf(Objects.requireNonNull(history, "history"));
+        Objects.requireNonNull(environmentConfiguration, "environmentConfiguration");
+        environmentActivations = List.copyOf(Objects.requireNonNull(
+                environmentActivations, "environmentActivations"));
+    }
+
+    public WorkspaceSnapshot(
+            List<RequestCollection> collections,
+            List<SavedRequest> savedRequests,
+            List<RequestHistoryEntry> history
+    ) {
+        this(collections, savedRequests, history, EnvironmentConfiguration.empty(), List.of());
     }
 }

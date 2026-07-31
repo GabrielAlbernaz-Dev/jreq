@@ -1,18 +1,26 @@
 package com.jreq.request.presentation;
 
 import com.jreq.request.application.ExecutionReport;
+import com.jreq.request.application.EnvironmentActivation;
+import com.jreq.request.application.EnvironmentConfiguration;
 import com.jreq.request.application.HttpResponseFailure;
 import com.jreq.request.application.HttpResponseResult;
 import com.jreq.request.application.HttpResponseSuccess;
+import com.jreq.request.application.RequestVariableResolver;
+import com.jreq.request.application.VariableResolutionStatus;
 import com.jreq.request.application.WorkspaceService;
 import com.jreq.request.application.WorkspaceSnapshot;
 import com.jreq.request.domain.HttpMethod;
+import com.jreq.request.domain.EnvironmentSelection;
+import com.jreq.request.domain.HistoryEnvironmentReference;
 import com.jreq.request.domain.HttpRequestDefinition;
 import com.jreq.request.domain.KeyValueEntry;
 import com.jreq.request.domain.RequestBody;
 import com.jreq.request.domain.RequestBodyType;
 import com.jreq.request.domain.RequestCollection;
 import com.jreq.request.domain.RequestHistoryEntry;
+import com.jreq.request.domain.RequestEnvironment;
+import com.jreq.request.domain.RequestExecutionContext;
 import com.jreq.request.domain.RequestLocation;
 import com.jreq.request.domain.SavedRequest;
 import com.jreq.request.domain.WorkspaceName;
@@ -40,6 +48,7 @@ import java.util.function.Consumer;
 
 public final class MainViewModel {
     private final WorkspaceService workspaceService;
+    private final RequestVariableResolver variableResolver;
 
     private final ObjectProperty<HttpMethod> selectedMethod =
             new SimpleObjectProperty<>(HttpMethod.GET);
@@ -62,29 +71,50 @@ public final class MainViewModel {
     private final StringProperty responseRaw = new SimpleStringProperty("");
     private final StringProperty statusMessage = new SimpleStringProperty("Ready");
     private final StringProperty errorMessage = new SimpleStringProperty("");
+    private final StringProperty variableFeedback = new SimpleStringProperty("");
+    private final ObjectProperty<VariableFeedbackState> variableFeedbackState =
+            new SimpleObjectProperty<>(VariableFeedbackState.NONE);
+    private final ObjectProperty<VariableResolutionStatus> variableResolutionStatus =
+            new SimpleObjectProperty<>(new VariableResolutionStatus(0, List.of(), java.util.Set.of()));
     private final ObjectProperty<ResponsiveLayoutMode> responsiveMode =
             new SimpleObjectProperty<>(ResponsiveLayoutMode.NORMAL);
     private final ObjectProperty<RequestLocation> requestLocation =
             new SimpleObjectProperty<>(RequestLocation.root());
+    private final ObjectProperty<EnvironmentSelection> selectedEnvironment =
+            new SimpleObjectProperty<>(EnvironmentSelection.none());
 
     private final ObservableList<RequestCollection> collections = FXCollections.observableArrayList();
     private final ObservableList<SavedRequest> savedRequests = FXCollections.observableArrayList();
     private final ObservableList<RequestHistoryEntry> history = FXCollections.observableArrayList();
+    private final ObservableList<RequestEnvironment> environments = FXCollections.observableArrayList();
 
     private UUID requestId = UUID.randomUUID();
     private List<KeyValueEntry> queryParameters = List.of(KeyValueEntry.empty());
     private List<KeyValueEntry> headers = List.of(KeyValueEntry.empty());
     private Optional<EditorSnapshot> baseline = Optional.empty();
     private boolean changingEditor;
+    private EnvironmentConfiguration environmentConfiguration = EnvironmentConfiguration.empty();
+    private List<EnvironmentActivation> environmentActivations = List.of();
 
     public MainViewModel(WorkspaceService workspaceService) {
+        this(workspaceService, new RequestVariableResolver());
+    }
+
+    public MainViewModel(WorkspaceService workspaceService, RequestVariableResolver variableResolver) {
         this.workspaceService = Objects.requireNonNull(workspaceService, "workspaceService");
+        this.variableResolver = Objects.requireNonNull(variableResolver, "variableResolver");
         selectedMethod.addListener((observable, oldValue, newValue) -> recomputeDirty());
-        url.addListener((observable, oldValue, newValue) -> recomputeDirty());
-        bodyType.addListener((observable, oldValue, newValue) -> recomputeDirty());
-        requestBody.addListener((observable, oldValue, newValue) -> recomputeDirty());
-        requestLocation.addListener((observable, oldValue, newValue) -> recomputeDirty());
+        url.addListener((observable, oldValue, newValue) -> editorValueChanged());
+        bodyType.addListener((observable, oldValue, newValue) -> editorValueChanged());
+        requestBody.addListener((observable, oldValue, newValue) -> editorValueChanged());
+        requestLocation.addListener((observable, oldValue, newValue) -> {
+            recomputeDirty();
+            syncSelectedEnvironment();
+            refreshVariableFeedback();
+        });
+        selectedEnvironment.addListener((observable, oldValue, newValue) -> refreshVariableFeedback());
         baseline = Optional.of(snapshot());
+        refreshVariableFeedback();
     }
 
     public CompletableFuture<Void> initializeWorkspace() {
@@ -106,7 +136,9 @@ public final class MainViewModel {
         HttpRequestDefinition request = definition();
         loading.set(true);
         statusMessage.set("Sending request…");
-        workspaceService.executeAndRecord(request)
+        workspaceService.executeAndRecord(
+                        request,
+                        new RequestExecutionContext(requestLocation.get(), selectedEnvironment.get()))
                 .thenCompose(report -> workspaceService.loadWorkspace()
                         .thenApply(snapshot -> new SendCompletion(report, snapshot)))
                 .whenComplete((completion, failure) -> onFx(() -> {
@@ -140,6 +172,7 @@ public final class MainViewModel {
         baseline = Optional.of(snapshot());
         dirty.set(false);
         statusMessage.set("New unsaved request");
+        refreshVariableFeedback();
     }
 
     public void openSavedRequest(SavedRequest savedRequest) {
@@ -153,14 +186,18 @@ public final class MainViewModel {
 
     public void openHistory(RequestHistoryEntry entry) {
         Objects.requireNonNull(entry, "entry");
+        RequestLocation restoredLocation = existingLocation(entry.executionContext().location());
         HttpRequestDefinition detached = new HttpRequestDefinition(
                 UUID.randomUUID(), entry.request().name(), entry.request().method(), entry.request().url(),
                 entry.request().queryParameters(), entry.request().headers(), entry.request().body());
-        loadDefinition(detached, RequestLocation.root(), false);
+        loadDefinition(detached, restoredLocation, false);
         baseline = Optional.empty();
         dirty.set(true);
         renderResult(entry.result());
-        statusMessage.set("Opened history snapshot — save to keep it");
+        boolean contextRestored = restoreHistoryEnvironment(entry, restoredLocation);
+        statusMessage.set(contextRestored
+                ? "Opened history snapshot with its environment — save to keep it"
+                : "Opened history snapshot — the original environment is unavailable");
     }
 
     public CompletableFuture<SavedRequest> saveCurrent() {
@@ -280,14 +317,45 @@ public final class MainViewModel {
         });
     }
 
+    public CompletableFuture<Void> selectEnvironment(EnvironmentSelection selection) {
+        Objects.requireNonNull(selection, "selection");
+        RequestLocation location = requestLocation.get();
+        return applyFuture(workspaceService.selectEnvironment(location, selection), ignored -> {
+            List<EnvironmentActivation> updated = new java.util.ArrayList<>(environmentActivations.stream()
+                    .filter(activation -> !activation.location().equals(location))
+                    .toList());
+            if (selection instanceof EnvironmentSelection.Selected) {
+                updated.add(new EnvironmentActivation(location, selection));
+            }
+            environmentActivations = List.copyOf(updated);
+            selectedEnvironment.set(selection);
+            statusMessage.set(selection instanceof EnvironmentSelection.Selected
+                    ? "Environment selected"
+                    : "Using global variables only");
+        });
+    }
+
+    public CompletableFuture<Void> saveEnvironmentConfiguration(EnvironmentConfiguration configuration) {
+        Objects.requireNonNull(configuration, "configuration");
+        CompletableFuture<WorkspaceSnapshot> operation = workspaceService
+                .saveEnvironmentConfiguration(configuration)
+                .thenCompose(ignored -> workspaceService.loadWorkspace());
+        return applyFuture(operation, snapshot -> {
+            applyWorkspace(snapshot);
+            statusMessage.set("Environments saved");
+        });
+    }
+
     public void updateQueryParameters(List<KeyValueEntry> entries) {
         queryParameters = List.copyOf(entries);
         recomputeDirty();
+        refreshVariableFeedback();
     }
 
     public void updateHeaders(List<KeyValueEntry> entries) {
         headers = List.copyOf(entries);
         recomputeDirty();
+        refreshVariableFeedback();
     }
 
     public List<KeyValueEntry> queryParameters() {
@@ -359,6 +427,7 @@ public final class MainViewModel {
         requestLocation.set(location);
         persisted.set(isPersisted);
         changingEditor = false;
+        refreshVariableFeedback();
     }
 
     private RequestBody createBody() {
@@ -380,6 +449,87 @@ public final class MainViewModel {
         collections.setAll(snapshot.collections());
         savedRequests.setAll(snapshot.savedRequests());
         history.setAll(snapshot.history());
+        environmentConfiguration = snapshot.environmentConfiguration();
+        environmentActivations = snapshot.environmentActivations();
+        environments.setAll(environmentConfiguration.environments());
+        syncSelectedEnvironment();
+        refreshVariableFeedback();
+    }
+
+    private void editorValueChanged() {
+        recomputeDirty();
+        refreshVariableFeedback();
+    }
+
+    private void refreshVariableFeedback() {
+        if (changingEditor) {
+            return;
+        }
+        VariableResolutionStatus status = variableResolver.inspect(
+                definition(), environmentConfiguration.globals(), selectedEnvironment());
+        variableResolutionStatus.set(status);
+        if (!status.hasReferences()) {
+            variableFeedback.set("");
+            variableFeedbackState.set(VariableFeedbackState.NONE);
+            return;
+        }
+        if (status.isResolved()) {
+            String noun = status.referenceCount() == 1 ? "variable" : "variables";
+            variableFeedback.set("✓ " + status.referenceCount() + " " + noun + " resolved");
+            variableFeedbackState.set(VariableFeedbackState.RESOLVED);
+            return;
+        }
+        variableFeedback.set("⚠ " + String.join(" · ", status.issues()));
+        variableFeedbackState.set(VariableFeedbackState.INVALID);
+    }
+
+    private Optional<RequestEnvironment> selectedEnvironment() {
+        if (selectedEnvironment.get() instanceof EnvironmentSelection.Selected selected) {
+            return environmentConfiguration.findEnvironment(selected.environmentId());
+        }
+        return Optional.empty();
+    }
+
+    private void syncSelectedEnvironment() {
+        EnvironmentSelection selection = environmentActivations.stream()
+                .filter(activation -> activation.location().equals(requestLocation.get()))
+                .map(EnvironmentActivation::selection)
+                .findFirst()
+                .filter(this::environmentExists)
+                .orElseGet(EnvironmentSelection::none);
+        selectedEnvironment.set(selection);
+    }
+
+    private boolean environmentExists(EnvironmentSelection selection) {
+        if (selection instanceof EnvironmentSelection.None) {
+            return true;
+        }
+        UUID id = ((EnvironmentSelection.Selected) selection).environmentId();
+        return environmentConfiguration.findEnvironment(id).isPresent();
+    }
+
+    private RequestLocation existingLocation(RequestLocation location) {
+        if (location instanceof RequestLocation.Collection collection
+                && collections.stream().noneMatch(item -> item.id().equals(collection.collectionId()))) {
+            return RequestLocation.root();
+        }
+        return location;
+    }
+
+    private boolean restoreHistoryEnvironment(RequestHistoryEntry entry, RequestLocation location) {
+        if (entry.executionContext().environment() instanceof HistoryEnvironmentReference.None) {
+            selectedEnvironment.set(EnvironmentSelection.none());
+            return true;
+        }
+        HistoryEnvironmentReference.Selected reference =
+                (HistoryEnvironmentReference.Selected) entry.executionContext().environment();
+        EnvironmentSelection selection = EnvironmentSelection.selected(reference.id());
+        if (!environmentExists(selection)) {
+            selectedEnvironment.set(EnvironmentSelection.none());
+            return false;
+        }
+        selectEnvironment(selection);
+        return location.equals(entry.executionContext().location());
     }
 
     private void replaceSaved(SavedRequest savedRequest) {
@@ -502,11 +652,21 @@ public final class MainViewModel {
     public StringProperty responseRawProperty() { return responseRaw; }
     public StringProperty statusMessageProperty() { return statusMessage; }
     public StringProperty errorMessageProperty() { return errorMessage; }
+    public StringProperty variableFeedbackProperty() { return variableFeedback; }
+    public ObjectProperty<VariableFeedbackState> variableFeedbackStateProperty() {
+        return variableFeedbackState;
+    }
+    public ObjectProperty<VariableResolutionStatus> variableResolutionStatusProperty() {
+        return variableResolutionStatus;
+    }
     public ObjectProperty<ResponsiveLayoutMode> responsiveModeProperty() { return responsiveMode; }
     public ObjectProperty<RequestLocation> requestLocationProperty() { return requestLocation; }
+    public ObjectProperty<EnvironmentSelection> selectedEnvironmentProperty() { return selectedEnvironment; }
     public ObservableList<RequestCollection> collections() { return collections; }
     public ObservableList<SavedRequest> savedRequests() { return savedRequests; }
     public ObservableList<RequestHistoryEntry> history() { return history; }
+    public ObservableList<RequestEnvironment> environments() { return environments; }
+    public EnvironmentConfiguration environmentConfiguration() { return environmentConfiguration; }
 
     private record EditorSnapshot(HttpRequestDefinition definition, RequestLocation location) {
     }

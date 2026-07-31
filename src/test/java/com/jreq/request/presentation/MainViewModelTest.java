@@ -12,6 +12,7 @@ import com.jreq.request.domain.RequestHistoryEntry;
 import com.jreq.request.domain.RequestLocation;
 import com.jreq.request.domain.SavedRequest;
 import com.jreq.request.infrastructure.persistence.JdbcCollectionRepository;
+import com.jreq.request.infrastructure.persistence.JdbcEnvironmentRepository;
 import com.jreq.request.infrastructure.persistence.JdbcRequestHistoryRepository;
 import com.jreq.request.infrastructure.persistence.JdbcSavedRequestRepository;
 import com.jreq.shared.database.JdbcTransactionManager;
@@ -51,9 +52,11 @@ class MainViewModelTest {
                 new JdbcCollectionRepository(factory, transactionManager, mapper),
                 new JdbcSavedRequestRepository(factory, mapper),
                 new JdbcRequestHistoryRepository(factory, transactionManager, mapper),
+                new JdbcEnvironmentRepository(factory, transactionManager),
                 request -> CompletableFuture.completedFuture(new HttpResponseFailure(
                         ErrorCategory.UNKNOWN, "Failure", Duration.ZERO)),
-                databaseExecutor);
+                databaseExecutor,
+                new com.jreq.request.application.RequestVariableResolver());
         viewModel = new MainViewModel(service);
     }
 
@@ -117,5 +120,20 @@ class MainViewModelTest {
         assertThat(viewModel.responseStatusProperty().get()).isEqualTo("ERROR");
         assertThat(viewModel.responseBodyProperty().get()).isEqualTo("The request timed out.");
         assertThat(viewModel.definition().id()).isNotEqualTo(definition.id());
+    }
+
+    @Test
+    void providesLiveFeedbackForVariableReferences() {
+        viewModel.urlProperty().set("https://example.com/{{missing}}");
+
+        assertThat(viewModel.variableFeedbackStateProperty().get())
+                .isEqualTo(VariableFeedbackState.INVALID);
+        assertThat(viewModel.variableFeedbackProperty().get()).contains("missing {{missing}}");
+
+        viewModel.urlProperty().set("https://example.com/health");
+
+        assertThat(viewModel.variableFeedbackStateProperty().get())
+                .isEqualTo(VariableFeedbackState.NONE);
+        assertThat(viewModel.variableFeedbackProperty().get()).isEmpty();
     }
 }

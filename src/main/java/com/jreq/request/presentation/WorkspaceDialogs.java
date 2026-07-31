@@ -1,7 +1,9 @@
 package com.jreq.request.presentation;
 
+import com.jreq.request.application.EnvironmentConfiguration;
 import com.jreq.request.domain.RequestCollection;
 import com.jreq.request.domain.RequestLocation;
+import com.jreq.shared.ui.ResponsiveLayoutMode;
 import javafx.scene.Node;
 import javafx.beans.binding.Bindings;
 import javafx.scene.control.Alert;
@@ -75,6 +77,16 @@ final class WorkspaceDialogs {
         return dialog.showAndWait().map(String::strip).filter(value -> !value.isEmpty());
     }
 
+    Optional<EnvironmentConfiguration> showEnvironmentManager(
+            EnvironmentConfiguration configuration,
+            List<RequestCollection> collections,
+            RequestLocation currentLocation,
+            ResponsiveLayoutMode layoutMode
+    ) {
+        return new EnvironmentManagementDialog(
+                owner(), configuration, collections, currentLocation, layoutMode).show();
+    }
+
     boolean confirm(String header, String content) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, content, ButtonType.CANCEL, ButtonType.OK);
         alert.initOwner(owner());
@@ -91,7 +103,8 @@ final class WorkspaceDialogs {
         dialog.setHeaderText("Delete “" + collection.name() + "”?");
         CheckBox deleteRequests = new CheckBox("Delete contained requests");
         Label explanation = new Label(
-                "Leave this unchecked to move contained requests to the root.");
+                "Collection environments will be deleted. Leave requests unchecked to move them "
+                        + "to the root; placeholders that depended on those environments may stop resolving.");
         explanation.setWrapText(true);
         explanation.getStyleClass().add("muted-label");
         dialog.getDialogPane().setContent(new VBox(10, explanation, deleteRequests));

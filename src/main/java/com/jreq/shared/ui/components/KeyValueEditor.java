@@ -1,5 +1,6 @@
 package com.jreq.shared.ui.components;
 
+import com.jreq.request.application.VariableResolutionStatus;
 import com.jreq.request.domain.KeyValueEntry;
 import com.jreq.shared.ui.KeyValueEditorModel;
 import javafx.geometry.Pos;
@@ -13,12 +14,16 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.function.Consumer;
 
 public final class KeyValueEditor extends VBox {
     private final KeyValueEditorModel model = new KeyValueEditorModel();
     private final VBox rows = new VBox();
+    private final List<VariableHighlightingField> valueFields = new ArrayList<>();
+    private VariableResolutionStatus resolutionStatus =
+            new VariableResolutionStatus(0, List.of(), java.util.Set.of());
     private Consumer<List<KeyValueEntry>> onChange = entries -> { };
 
     public KeyValueEditor() {
@@ -49,8 +54,14 @@ public final class KeyValueEditor extends VBox {
         onChange = Objects.requireNonNull(action, "action");
     }
 
+    public void setVariableResolutionStatus(VariableResolutionStatus status) {
+        resolutionStatus = Objects.requireNonNull(status, "status");
+        valueFields.forEach(field -> field.setResolutionStatus(status));
+    }
+
     private void renderRows() {
         rows.getChildren().clear();
+        valueFields.clear();
         for (KeyValueEntry entry : model.entries()) {
             rows.getChildren().add(createRow(entry));
         }
@@ -67,10 +78,13 @@ public final class KeyValueEditor extends VBox {
         key.getStyleClass().add("monospace");
         HBox.setHgrow(key, Priority.ALWAYS);
 
-        TextField value = new TextField(entry.value());
+        VariableHighlightingField value = new VariableHighlightingField();
+        value.textProperty().set(entry.value());
         value.setPromptText("Value");
         value.setAccessibleText("Entry value");
         value.getStyleClass().add("monospace");
+        value.setResolutionStatus(resolutionStatus);
+        valueFields.add(value);
         HBox.setHgrow(value, Priority.ALWAYS);
 
         Button remove = new Button("×");

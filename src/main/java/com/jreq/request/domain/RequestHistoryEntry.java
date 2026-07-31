@@ -11,7 +11,8 @@ public record RequestHistoryEntry(
         String name,
         HttpRequestDefinition request,
         HttpResponseResult result,
-        Instant createdAt
+        Instant createdAt,
+        HistoryExecutionContext executionContext
 ) {
     public RequestHistoryEntry {
         Objects.requireNonNull(id, "id");
@@ -19,5 +20,16 @@ public record RequestHistoryEntry(
         Objects.requireNonNull(request, "request");
         Objects.requireNonNull(result, "result");
         Objects.requireNonNull(createdAt, "createdAt");
+        Objects.requireNonNull(executionContext, "executionContext");
+    }
+
+    public RequestHistoryEntry(
+            UUID id,
+            String name,
+            HttpRequestDefinition request,
+            HttpResponseResult result,
+            Instant createdAt
+    ) {
+        this(id, name, request, result, createdAt, HistoryExecutionContext.rootWithoutEnvironment());
     }
 }

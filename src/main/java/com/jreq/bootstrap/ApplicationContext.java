@@ -2,12 +2,15 @@ package com.jreq.bootstrap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jreq.request.application.CollectionRepository;
+import com.jreq.request.application.EnvironmentRepository;
 import com.jreq.request.application.HttpExecutor;
 import com.jreq.request.application.RequestHistoryRepository;
 import com.jreq.request.application.SavedRequestRepository;
 import com.jreq.request.application.WorkspaceService;
+import com.jreq.request.application.RequestVariableResolver;
 import com.jreq.request.infrastructure.http.JavaHttpExecutor;
 import com.jreq.request.infrastructure.persistence.JdbcCollectionRepository;
+import com.jreq.request.infrastructure.persistence.JdbcEnvironmentRepository;
 import com.jreq.request.infrastructure.persistence.JdbcRequestHistoryRepository;
 import com.jreq.request.infrastructure.persistence.JdbcSavedRequestRepository;
 import com.jreq.request.presentation.MainController;
@@ -63,9 +66,11 @@ public final class ApplicationContext implements AutoCloseable {
                 new JdbcSavedRequestRepository(connectionFactory, objectMapper);
         RequestHistoryRepository historyRepository =
                 new JdbcRequestHistoryRepository(connectionFactory, transactionManager, objectMapper);
+        EnvironmentRepository environmentRepository =
+                new JdbcEnvironmentRepository(connectionFactory, transactionManager);
 
         return new PersistenceComponents(
-                collectionRepository, savedRequestRepository, historyRepository);
+                collectionRepository, savedRequestRepository, historyRepository, environmentRepository);
     }
 
     private static ApplicationContext composeApplication(
@@ -74,13 +79,17 @@ public final class ApplicationContext implements AutoCloseable {
             ExecutorServiceTaskExecutor databaseExecutor
     ) {
         HttpExecutor httpExecutor = new JavaHttpExecutor(configuration.httpTimeout());
+        RequestVariableResolver variableResolver = new RequestVariableResolver();
         WorkspaceService workspaceService = new WorkspaceService(
                 persistence.collections(),
                 persistence.savedRequests(),
                 persistence.history(),
+                persistence.environments(),
                 httpExecutor,
-                databaseExecutor);
-        return new ApplicationContext(configuration, new MainViewModel(workspaceService), databaseExecutor);
+                databaseExecutor,
+                variableResolver);
+        return new ApplicationContext(
+                configuration, new MainViewModel(workspaceService, variableResolver), databaseExecutor);
     }
 
     public Object createController(Class<?> controllerType) {
@@ -102,7 +111,8 @@ public final class ApplicationContext implements AutoCloseable {
     private record PersistenceComponents(
             CollectionRepository collections,
             SavedRequestRepository savedRequests,
-            RequestHistoryRepository history
+            RequestHistoryRepository history,
+            EnvironmentRepository environments
     ) {
     }
 }

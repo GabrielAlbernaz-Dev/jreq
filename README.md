@@ -27,11 +27,13 @@ jREQ is a native JavaFX application for developers who want a focused HTTP works
 - Root requests and flat collections with case-insensitive name uniqueness.
 - Request rename, move, duplicate, and delete operations.
 - Collection create, rename, and delete operations.
+- Reusable global and collection-scoped environments with `{{variable}}` interpolation.
+- Selectable global variables, per-context environment selection, nested references, and masked secrets.
 - Local history for the 100 newest attempts, including failures.
 - Unsaved-change protection when navigating between requests.
 - SQLite persistence managed through versioned Flyway migrations.
 
-Authentication helpers, environment variables, environment management, import/export, and packaged installers are not implemented yet. Their visible controls are placeholders for future work.
+Authentication helpers, import/export, and packaged installers are not implemented yet. Their visible controls are placeholders for future work.
 
 ## Quick start
 
@@ -95,6 +97,24 @@ Open the menu beside **Save**, or press `Ctrl/Cmd + Shift + S`, to choose a dest
 
 Collections are intentionally flat in the current version; nested collections are not supported yet.
 
+### Use environments and variables
+
+Use the environment selector in the top bar to choose a context for the open request, or select **Manage environments…** to edit variables.
+
+- **Globals** are used when **Globals only** is selected.
+- **Global environments** and **collection environments** are grouped by scope in the selector, but can be selected for any request.
+- The scope identifies where an environment is organized and managed; it does not block using that environment elsewhere.
+- The root and every collection remember their own selected environment. Select **Globals only** to use Globals without a named environment.
+- Selecting a named environment uses only that environment's variables; Globals are not used as fallback.
+
+Reference variables with double braces, such as `{{base_url}}`. jREQ resolves placeholders in the URL, enabled query parameter values, enabled header values, and JSON or text bodies. Variable values can reference other variables. Missing variables and reference cycles block the request before any network call and identify the affected keys without displaying their values.
+
+While editing a request, variable tokens in the URL, parameter values, and header values are highlighted green when resolved and red when missing or cyclic. The context row keeps an aggregate warning, including references found in the request body.
+
+Environment edits are staged in the manager until **Save** is selected. Variables can be disabled without being removed or marked as secret. Secret values are masked by default in the manager, but are still stored as local workspace data rather than encrypted credentials.
+
+Saved requests retain their original placeholders. History records the request template and the environment context, not a second copy containing resolved secret values. Opening a history entry restores its collection and environment when they still exist.
+
 ### Revisit history
 
 Every completed request attempt is added to local history, including transport failures, invalid responses, and other structured errors. jREQ retains the 100 newest entries.
@@ -130,7 +150,7 @@ jREQ has no account requirement and no application backend. Workspace data stays
 
 The database uses foreign-key enforcement, write-ahead logging, and a busy timeout. Flyway applies schema migrations at startup. Back up the database file before manually inspecting or modifying production workspace data.
 
-jREQ does not log credentials, tokens, authorization headers, cookies, or sensitive request bodies. Saved request headers and bodies are workspace data, however, so treat the database file as sensitive when requests contain secrets.
+jREQ does not log credentials, tokens, authorization headers, cookies, sensitive request bodies, environment values, or global variable values. Saved request headers, bodies, global variables, and environment values are workspace data. Values marked as secret are masked in the interface but stored as plaintext in SQLite, so treat the database file as sensitive.
 
 ## Configuration
 
@@ -156,6 +176,7 @@ These properties are loaded from the application classpath. After editing them, 
 - Java `HttpClient` for asynchronous HTTP execution.
 - Jackson for JSON serialization.
 - AtlantaFX plus project CSS for the desktop theme.
+- RichTextFX for inline variable-token feedback in the request URL editor.
 - JUnit 5 and AssertJ for tests.
 
 jREQ deliberately uses explicit composition and does not depend on Spring, Hibernate, JPA, Lombok, or a dependency-injection framework.
@@ -198,7 +219,7 @@ MainController ── MainViewModel
 
 - `bootstrap` loads configuration, initializes the database, composes dependencies, and manages the JavaFX scene.
 - `request/domain` contains immutable request, collection, history, and location models.
-- `request/application` owns workspace use cases and defines repository and HTTP boundaries.
+- `request/application` owns workspace and environment use cases, variable resolution, and repository and HTTP boundaries.
 - `request/infrastructure` implements SQLite persistence and HTTP transport.
 - `request/presentation` coordinates JavaFX state, dialogs, and controller bindings.
 - `shared` contains focused concurrency, database, JSON, error, and reusable UI support.
@@ -261,7 +282,7 @@ When reporting a bug, include the operating system, JDK version, exact reproduct
 
 ## Roadmap
 
-Near-term areas include authentication helpers, reusable environments and variables, import/export, deeper request organization, and platform-specific packaging. Roadmap items are direction rather than release commitments; current behavior is documented in [Current features](#current-features).
+Near-term areas include authentication helpers, import/export, deeper request organization, and platform-specific packaging. Roadmap items are direction rather than release commitments; current behavior is documented in [Current features](#current-features).
 
 ## License
 

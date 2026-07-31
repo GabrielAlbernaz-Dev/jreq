@@ -1,6 +1,8 @@
 package com.jreq.request.presentation;
 
 import com.jreq.request.domain.RequestBodyType;
+import com.jreq.request.domain.EnvironmentSelection;
+import com.jreq.request.domain.RequestEnvironment;
 import com.jreq.request.domain.RequestCollection;
 import com.jreq.request.domain.RequestHistoryEntry;
 import com.jreq.request.domain.RequestLocation;
@@ -19,9 +21,13 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -39,6 +45,7 @@ public final class MainController implements WorkspaceSidebar.Actions {
     @FXML private BorderPane mainRoot;
     @FXML private VBox sidebar;
     @FXML private Button sidebarToggle;
+    @FXML private MenuButton environmentMenu;
     @FXML private RequestBarControl requestBar;
     @FXML private TabPane requestTabs;
     @FXML private TabPane responseTabs;
@@ -53,6 +60,7 @@ public final class MainController implements WorkspaceSidebar.Actions {
     @FXML private Label statusMessage;
     @FXML private Label requestNameLabel;
     @FXML private Label requestLocationLabel;
+    @FXML private Label variableFeedbackLabel;
     @FXML private Label dirtyIndicator;
     @FXML private EmptyStateView authEmptyState;
     @FXML private VBox rootRequests;
@@ -75,6 +83,7 @@ public final class MainController implements WorkspaceSidebar.Actions {
         bindResponse();
         bindNavigation();
         installListRendering();
+        installEnvironmentMenu();
 
         authEmptyState.setTitle("Authentication is not configured");
         authEmptyState.setDescription(
@@ -94,6 +103,9 @@ public final class MainController implements WorkspaceSidebar.Actions {
     private void bindEditor() {
         requestBar.methodProperty().bindBidirectional(viewModel.selectedMethodProperty());
         requestBar.urlProperty().bindBidirectional(viewModel.urlProperty());
+        applyVariableResolutionStatus(viewModel.variableResolutionStatusProperty().get());
+        viewModel.variableResolutionStatusProperty().addListener(
+                (observable, oldValue, newValue) -> applyVariableResolutionStatus(newValue));
         requestBar.setOnSend(viewModel::sendRequest);
         requestBar.setOnSave(this::handleSave);
         requestBar.setOnSaveAs(this::handleSaveAs);
@@ -128,6 +140,33 @@ public final class MainController implements WorkspaceSidebar.Actions {
         requestLocationLabel.textProperty().bind(Bindings.createStringBinding(
                 () -> locationName(viewModel.requestLocationProperty().get()),
                 viewModel.requestLocationProperty(), viewModel.collections()));
+        variableFeedbackLabel.textProperty().bind(viewModel.variableFeedbackProperty());
+        variableFeedbackLabel.visibleProperty().bind(viewModel.variableFeedbackProperty().isNotEmpty());
+        variableFeedbackLabel.managedProperty().bind(variableFeedbackLabel.visibleProperty());
+        Tooltip variableFeedbackTooltip = new Tooltip();
+        variableFeedbackTooltip.textProperty().bind(viewModel.variableFeedbackProperty());
+        variableFeedbackLabel.setTooltip(variableFeedbackTooltip);
+        viewModel.variableFeedbackStateProperty().addListener(
+                (observable, oldValue, newValue) -> applyVariableFeedbackStyle(newValue));
+        applyVariableFeedbackStyle(viewModel.variableFeedbackStateProperty().get());
+    }
+
+    private void applyVariableResolutionStatus(
+            com.jreq.request.application.VariableResolutionStatus status
+    ) {
+        requestBar.setVariableResolutionStatus(status);
+        paramsEditor.setVariableResolutionStatus(status);
+        headersEditor.setVariableResolutionStatus(status);
+    }
+
+    private void applyVariableFeedbackStyle(VariableFeedbackState state) {
+        variableFeedbackLabel.getStyleClass().removeAll(
+                "variable-feedback-resolved", "variable-feedback-invalid");
+        if (state == VariableFeedbackState.RESOLVED) {
+            variableFeedbackLabel.getStyleClass().add("variable-feedback-resolved");
+        } else if (state == VariableFeedbackState.INVALID) {
+            variableFeedbackLabel.getStyleClass().add("variable-feedback-invalid");
+        }
     }
 
     private void bindResponse() {
@@ -154,6 +193,80 @@ public final class MainController implements WorkspaceSidebar.Actions {
         viewModel.collections().addListener((ListChangeListener<RequestCollection>) change -> renderSidebar());
         viewModel.savedRequests().addListener((ListChangeListener<SavedRequest>) change -> renderSidebar());
         viewModel.history().addListener((ListChangeListener<RequestHistoryEntry>) change -> renderSidebar());
+    }
+
+    private void installEnvironmentMenu() {
+        viewModel.environments().addListener(
+                (ListChangeListener<RequestEnvironment>) change -> renderEnvironmentMenu());
+        viewModel.requestLocationProperty().addListener(
+                (observable, oldValue, newValue) -> renderEnvironmentMenu());
+        viewModel.selectedEnvironmentProperty().addListener(
+                (observable, oldValue, newValue) -> renderEnvironmentMenu());
+        environmentMenu.disableProperty().bind(viewModel.loadingProperty());
+        renderEnvironmentMenu();
+    }
+
+    private void renderEnvironmentMenu() {
+        environmentMenu.getItems().clear();
+        EnvironmentMenuModel menu = EnvironmentMenuModel.from(
+                viewModel.environmentConfiguration(),
+                viewModel.collections());
+        MenuItem globalsOnly = new MenuItem(menu.globalsOnlyLabel());
+        globalsOnly.setOnAction(event -> viewModel.selectEnvironment(EnvironmentSelection.none()));
+        environmentMenu.getItems().add(globalsOnly);
+
+        environmentMenu.getItems().add(new SeparatorMenuItem());
+        if (menu.groups().isEmpty()) {
+            environmentMenu.getItems().add(disabledEnvironmentItem(
+                    menu.emptyMessage(), "environment-menu-message"));
+        } else {
+            for (int index = 0; index < menu.groups().size(); index++) {
+                EnvironmentMenuModel.Group group = menu.groups().get(index);
+                environmentMenu.getItems().add(disabledEnvironmentItem(
+                        group.label(), "environment-menu-section"));
+                group.entries().stream()
+                        .map(this::selectableEnvironmentItem)
+                        .forEach(environmentMenu.getItems()::add);
+                if (index < menu.groups().size() - 1) {
+                    environmentMenu.getItems().add(new SeparatorMenuItem());
+                }
+            }
+        }
+
+        environmentMenu.getItems().add(new SeparatorMenuItem());
+        MenuItem manage = new MenuItem("Manage environments…");
+        manage.setOnAction(event -> dialogs.showEnvironmentManager(
+                        viewModel.environmentConfiguration(),
+                        viewModel.collections(),
+                        viewModel.requestLocationProperty().get(),
+                        viewModel.responsiveModeProperty().get())
+                .ifPresent(viewModel::saveEnvironmentConfiguration));
+        environmentMenu.getItems().add(manage);
+
+        environmentMenu.setText(selectedEnvironmentName());
+    }
+
+    private MenuItem selectableEnvironmentItem(EnvironmentMenuModel.Entry entry) {
+        MenuItem item = new MenuItem(entry.label());
+        item.setOnAction(event -> viewModel.selectEnvironment(
+                EnvironmentSelection.selected(entry.environment().id())));
+        return item;
+    }
+
+    private MenuItem disabledEnvironmentItem(String text, String styleClass) {
+        MenuItem item = new MenuItem(text);
+        item.getStyleClass().add(styleClass);
+        item.setDisable(true);
+        return item;
+    }
+
+    private String selectedEnvironmentName() {
+        if (viewModel.selectedEnvironmentProperty().get() instanceof EnvironmentSelection.Selected selected) {
+            return viewModel.environmentConfiguration().findEnvironment(selected.environmentId())
+                    .map(RequestEnvironment::name)
+                    .orElse("Globals only");
+        }
+        return "Globals only";
     }
 
     public void installSceneBehavior(Scene scene) {
