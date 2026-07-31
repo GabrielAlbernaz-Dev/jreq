@@ -6,10 +6,12 @@
 <?import com.jreq.shared.ui.components.ResponseMetadataView?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.MenuButton?>
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
@@ -36,12 +38,7 @@
                 <Label text="REQ" styleClass="logo-text"/>
                 <Label text="HTTP WORKSPACE" styleClass="product-context,wide-only"/>
                 <Region HBox.hgrow="ALWAYS"/>
-                <MenuButton text="Local" styleClass="environment-menu">
-                    <items>
-                        <MenuItem text="Local"/>
-                        <MenuItem text="Manage environments…"/>
-                    </items>
-                </MenuButton>
+                <MenuButton fx:id="environmentMenu" text="Globals only" styleClass="environment-menu"/>
                 <Button text="⚙" styleClass="icon-button" accessibleText="Settings">
                     <tooltip><Tooltip text="Settings"/></tooltip>
                 </Button>
@@ -55,26 +52,34 @@
                 <HBox alignment="CENTER_LEFT" styleClass="sidebar-heading-row">
                     <Label text="COLLECTIONS" styleClass="section-kicker"/>
                     <Region HBox.hgrow="ALWAYS"/>
-                    <Button text="+" styleClass="icon-button,small-icon-button" accessibleText="New collection">
+                    <Button text="+" onAction="#handleNewCollection"
+                            styleClass="icon-button,small-icon-button" accessibleText="New collection">
                         <tooltip><Tooltip text="New collection"/></tooltip>
                     </Button>
                 </HBox>
-                <VBox styleClass="sidebar-list" VBox.vgrow="ALWAYS">
-                    <children>
-                        <Label text="No saved requests" styleClass="sidebar-empty-label"/>
-                    </children>
-                </VBox>
+                <ScrollPane fitToWidth="true" hbarPolicy="NEVER" VBox.vgrow="ALWAYS"
+                            styleClass="sidebar-scroll">
+                    <content>
+                        <VBox styleClass="sidebar-list">
+                            <children>
+                                <Label text="ROOT" styleClass="sidebar-group-label"/>
+                                <VBox fx:id="rootRequests" styleClass="sidebar-group"/>
+                                <VBox fx:id="collectionsList" styleClass="collections-list"/>
+                            </children>
+                        </VBox>
+                    </content>
+                </ScrollPane>
                 <Separator/>
                 <HBox alignment="CENTER_LEFT" styleClass="sidebar-heading-row">
                     <Label text="HISTORY" styleClass="section-kicker"/>
                     <Region HBox.hgrow="ALWAYS"/>
-                    <Label text="RECENT" styleClass="muted-label,wide-only"/>
+                    <Button text="Clear" onAction="#handleClearHistory"
+                            styleClass="quiet-action" accessibleText="Clear history"/>
                 </HBox>
-                <VBox styleClass="sidebar-list">
-                    <children>
-                        <Label text="No history yet" styleClass="sidebar-empty-label"/>
-                    </children>
-                </VBox>
+                <ScrollPane fitToWidth="true" hbarPolicy="NEVER" prefViewportHeight="168"
+                            styleClass="sidebar-scroll,history-scroll">
+                    <content><VBox fx:id="historyList" styleClass="sidebar-list"/></content>
+                </ScrollPane>
                 <Button text="+ New request" onAction="#handleNewRequest"
                         styleClass="secondary-button,new-request-button" maxWidth="Infinity"/>
             </children>
@@ -86,6 +91,15 @@
             <items>
                 <VBox styleClass="request-panel">
                     <children>
+                        <HBox alignment="CENTER_LEFT" styleClass="editor-context-row">
+                            <children>
+                                <Label fx:id="dirtyIndicator" text="●" styleClass="dirty-indicator"/>
+                                <Label fx:id="requestNameLabel" text="Untitled Request" styleClass="request-name"/>
+                                <Region HBox.hgrow="ALWAYS"/>
+                                <Label fx:id="variableFeedbackLabel" styleClass="variable-feedback"/>
+                                <Label fx:id="requestLocationLabel" text="ROOT" styleClass="location-label"/>
+                            </children>
+                        </HBox>
                         <RequestBarControl fx:id="requestBar"/>
                         <TabPane fx:id="requestTabs" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS"
                                  styleClass="workspace-tabs">
@@ -94,7 +108,7 @@
                                     <content>
                                         <StackPane>
                                             <padding><Insets top="12" right="16" bottom="16" left="16"/></padding>
-                                            <KeyValueEditor/>
+                                            <KeyValueEditor fx:id="paramsEditor"/>
                                         </StackPane>
                                     </content>
                                 </Tab>
@@ -102,7 +116,7 @@
                                     <content>
                                         <StackPane>
                                             <padding><Insets top="12" right="16" bottom="16" left="16"/></padding>
-                                            <KeyValueEditor/>
+                                            <KeyValueEditor fx:id="headersEditor"/>
                                         </StackPane>
                                     </content>
                                 </Tab>
@@ -110,8 +124,13 @@
                                     <content>
                                         <VBox spacing="8">
                                             <padding><Insets top="12" right="16" bottom="16" left="16"/></padding>
-                                            <Label text="JSON / RAW TEXT" styleClass="section-kicker"/>
-                                            <TextArea promptText="Enter a JSON or raw text body" wrapText="true"
+                                            <HBox alignment="CENTER_LEFT" spacing="8">
+                                                <children>
+                                                    <Label text="BODY TYPE" styleClass="section-kicker"/>
+                                                    <ComboBox fx:id="bodyTypeSelector" styleClass="body-type-selector"/>
+                                                </children>
+                                            </HBox>
+                                            <TextArea fx:id="requestBody" promptText="Enter a JSON or raw text body" wrapText="true"
                                                       styleClass="code-area" VBox.vgrow="ALWAYS"/>
                                         </VBox>
                                     </content>
@@ -143,13 +162,13 @@
                                 </Tab>
                                 <Tab text="Headers">
                                     <content>
-                                        <TextArea editable="false" wrapText="false" styleClass="code-area"
+                                        <TextArea fx:id="responseHeaders" editable="false" wrapText="false" styleClass="code-area"
                                                   promptText="Response headers will appear here"/>
                                     </content>
                                 </Tab>
                                 <Tab text="Raw">
                                     <content>
-                                        <TextArea editable="false" wrapText="false" styleClass="code-area"
+                                        <TextArea fx:id="responseRaw" editable="false" wrapText="false" styleClass="code-area"
                                                   promptText="The raw response will appear here"/>
                                     </content>
                                 </Tab>

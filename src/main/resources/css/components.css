@@ -39,6 +39,126 @@
     -fx-padding: 0 4px;
 }
 
+.environment-menu-section:disabled,
+.environment-menu-message:disabled {
+    -fx-opacity: 1;
+}
+
+.environment-menu-section > .label {
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 10px;
+    -fx-font-weight: 800;
+}
+
+.environment-menu-message > .label {
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-style: italic;
+}
+
+.environment-dialog {
+    -fx-background-color: -jreq-background;
+}
+
+.environment-split,
+.environment-split > .split-pane-divider {
+    -fx-background-color: -jreq-subtle-border;
+}
+
+.environment-navigation,
+.environment-editor-area {
+    -fx-padding: 12px;
+    -fx-background-color: -jreq-surface;
+}
+
+.environment-editor-area {
+    -fx-background-color: -jreq-background;
+}
+
+.environment-navigation .list-view {
+    -fx-background-color: -jreq-background;
+    -fx-border-color: -jreq-border;
+}
+
+.environment-navigation .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -jreq-text-secondary;
+    -fx-padding: 9px;
+}
+
+.environment-navigation .list-cell:selected {
+    -fx-background-color: -jreq-red-soft;
+    -fx-text-fill: -jreq-text;
+}
+
+.environment-editor-heading {
+    -fx-padding: 0 0 12px 0;
+}
+
+.environment-variable-scroll,
+.environment-variable-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.environment-variable-rows {
+    -fx-padding: 4px;
+}
+
+.environment-variable-row {
+    -fx-padding: 9px 10px;
+    -fx-spacing: 9px;
+    -fx-background-color: -jreq-surface;
+    -fx-background-radius: 3px;
+    -fx-border-color: -jreq-subtle-border;
+    -fx-border-radius: 3px;
+}
+
+.environment-variable-row .text-field,
+.environment-variable-row .password-field {
+    -fx-min-height: 34px;
+}
+
+.secret-toggle {
+    -fx-min-width: 34px;
+    -fx-pref-width: 34px;
+    -fx-max-width: 34px;
+    -fx-min-height: 34px;
+    -fx-pref-height: 34px;
+    -fx-max-height: 34px;
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+    -fx-border-color: -jreq-border;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+    -fx-text-fill: -jreq-text-secondary;
+}
+
+.secret-toggle .secret-icon {
+    -fx-fill: -jreq-text-secondary;
+    -fx-scale-x: 0.68;
+    -fx-scale-y: 0.68;
+}
+
+.secret-toggle:hover {
+    -fx-background-color: -jreq-interactive;
+    -fx-border-color: -jreq-text-disabled;
+}
+
+.secret-toggle:selected {
+    -fx-background-color: -jreq-red-soft;
+    -fx-border-color: -jreq-red;
+    -fx-text-fill: -jreq-text;
+}
+
+.secret-toggle:selected .secret-icon {
+    -fx-fill: -jreq-red;
+}
+
+.validation-message {
+    -fx-text-fill: -jreq-error;
+    -fx-padding: 6px;
+}
+
 .icon-button {
     -fx-min-width: 32px;
     -fx-min-height: 32px;
@@ -126,6 +246,81 @@
     -fx-spacing: 2px;
 }
 
+.sidebar-scroll,
+.sidebar-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.sidebar-scroll {
+    -fx-padding: 0;
+}
+
+.history-scroll {
+    -fx-min-height: 96px;
+}
+
+.sidebar-group-label {
+    -fx-padding: 6px 8px 4px 8px;
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 9px;
+    -fx-font-weight: 800;
+}
+
+.sidebar-group,
+.collections-list,
+.collection-requests {
+    -fx-spacing: 2px;
+}
+
+.collections-list {
+    -fx-padding: 8px 0 0 0;
+}
+
+.collection-group {
+    -fx-spacing: 2px;
+}
+
+.collection-heading {
+    -fx-min-height: 32px;
+    -fx-padding: 0 8px 0 5px;
+    -fx-spacing: 7px;
+    -fx-background-radius: 3px;
+    -fx-cursor: hand;
+}
+
+.collection-heading:hover {
+    -fx-background-color: -jreq-interactive;
+}
+
+.collection-disclosure,
+.collection-count {
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 10px;
+}
+
+.collection-name {
+    -fx-text-fill: -jreq-text-secondary;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.collection-requests {
+    -fx-padding: 0 0 3px 10px;
+}
+
+.quiet-action {
+    -fx-padding: 3px 6px;
+    -fx-background-color: transparent;
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 10px;
+}
+
+.quiet-action:hover {
+    -fx-text-fill: -jreq-text;
+    -fx-background-color: -jreq-interactive;
+}
+
 .sidebar-empty-label {
     -fx-padding: 8px;
     -fx-text-fill: -jreq-text-disabled;
@@ -177,6 +372,46 @@
     -fx-background-color: -jreq-background;
 }
 
+.editor-context-row {
+    -fx-min-height: 30px;
+    -fx-padding: 6px 16px 0 16px;
+    -fx-spacing: 7px;
+}
+
+.request-name {
+    -fx-text-fill: -jreq-text-secondary;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.dirty-indicator {
+    -fx-text-fill: -jreq-red;
+    -fx-font-size: 8px;
+}
+
+.location-label {
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 9px;
+    -fx-font-weight: 800;
+}
+
+.variable-feedback {
+    -fx-padding: 3px 7px;
+    -fx-background-radius: 10px;
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+}
+
+.variable-feedback-resolved {
+    -fx-text-fill: -jreq-success;
+    -fx-background-color: rgba(47, 191, 113, 0.12);
+}
+
+.variable-feedback-invalid {
+    -fx-text-fill: -jreq-error;
+    -fx-background-color: rgba(255, 100, 100, 0.12);
+}
+
 .request-bar {
     -fx-min-height: 60px;
     -fx-padding: 10px 16px;
@@ -186,9 +421,125 @@
 
 .request-bar .combo-box,
 .request-bar .text-field,
+.request-bar .variable-highlighting-field,
+.request-bar .split-menu-button,
 .send-button {
     -fx-min-height: 40px;
     -fx-pref-height: 40px;
+}
+
+.variable-highlighting-field {
+    -fx-background-color: -jreq-interactive;
+    -fx-border-color: -jreq-border;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+}
+
+.variable-highlighting-field:focused {
+    -fx-border-color: -jreq-red;
+}
+
+.variable-highlighting-scroll,
+.variable-highlighting-scroll .virtual-flow,
+.variable-highlighting-editor {
+    -fx-background-color: transparent;
+}
+
+.variable-highlighting-editor {
+    -fx-padding: 10px 12px;
+    -fx-font-family: "JetBrains Mono", "Consolas", "Monospaced";
+    -fx-font-size: 13px;
+}
+
+.variable-highlighting-editor .paragraph-box:has-caret {
+    -fx-background-color: transparent;
+}
+
+.variable-highlighting-editor .caret {
+    -fx-stroke: -jreq-text;
+}
+
+.variable-highlighting-editor .selection {
+    -fx-fill: -jreq-red-soft;
+}
+
+.variable-highlighting-editor .placeholder {
+    -fx-text-fill: -jreq-text-disabled;
+}
+
+.variable-token-default {
+    -fx-fill: -jreq-text;
+}
+
+.variable-token-resolved {
+    -fx-fill: -jreq-success;
+    -fx-font-weight: 700;
+}
+
+.variable-token-invalid {
+    -fx-fill: -jreq-error;
+    -fx-font-weight: 700;
+    -rtfx-background-color: rgba(255, 100, 100, 0.12);
+}
+
+.save-button {
+    -fx-min-width: 94px;
+    -fx-pref-width: 94px;
+    -fx-max-width: 94px;
+    -fx-max-height: 40px;
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+
+.save-button > .label,
+.save-button > .arrow-button {
+    -fx-min-height: 40px;
+    -fx-pref-height: 40px;
+    -fx-max-height: 40px;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
+}
+
+.save-button > .label {
+    -fx-alignment: CENTER;
+    -fx-padding: 0 10px 0 12px;
+    -fx-background-color: transparent;
+    -fx-background-radius: 3px 0 0 3px;
+    -fx-border-color: -jreq-border;
+    -fx-border-width: 1px 0 1px 1px;
+    -fx-border-radius: 3px 0 0 3px;
+    -fx-text-fill: -jreq-text-secondary;
+}
+
+.save-button > .arrow-button {
+    -fx-padding: 0 9px;
+    -fx-background-color: transparent;
+    -fx-background-radius: 0 3px 3px 0;
+    -fx-border-color: -jreq-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 0 3px 3px 0;
+}
+
+.save-button > .arrow-button > .arrow {
+    -fx-background-color: -jreq-text-secondary;
+    -fx-padding: 3px;
+}
+
+.save-button > .label:hover,
+.save-button > .arrow-button:hover {
+    -fx-background-color: -jreq-interactive;
+    -fx-text-fill: -jreq-text;
+}
+
+.save-button > .arrow-button:hover > .arrow {
+    -fx-background-color: -jreq-text;
+}
+
+.body-type-selector {
+    -fx-pref-width: 128px;
 }
 
 .method-selector {
@@ -258,7 +609,8 @@
     -fx-spacing: 8px;
 }
 
-.key-value-row .text-field {
+.key-value-row .text-field,
+.key-value-row .variable-highlighting-field {
     -fx-min-height: 36px;
     -fx-pref-height: 36px;
 }

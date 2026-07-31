@@ -37,7 +37,7 @@ public final class SceneManager {
         MainController controller = loader.getController();
         controller.installSceneBehavior(scene);
 
-        stage.setTitle("jREQ");
+        stage.setTitle(applicationContext.windowTitle());
         stage.setMinWidth(MIN_WIDTH);
         stage.setMinHeight(MIN_HEIGHT);
         stage.setScene(scene);

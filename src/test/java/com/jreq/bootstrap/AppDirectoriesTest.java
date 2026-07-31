@@ -39,4 +39,12 @@ class AppDirectoriesTest {
 
         assertThat(result).isEqualTo(home.resolve("Library/Application Support/jREQ"));
     }
+
+    @Test
+    void resolvesTheConfiguredDatabaseFilenameInsideTheDataDirectory() {
+        AppDirectories directories = new AppDirectories(Path.of("/data/jreq"));
+
+        assertThat(directories.databasePath("workspace.sqlite"))
+                .isEqualTo(Path.of("/data/jreq/workspace.sqlite"));
+    }
 }

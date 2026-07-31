@@ -24,6 +24,15 @@ public final class KeyValueEditorModel {
         return entry;
     }
 
+    public void replaceEntries(List<KeyValueEntry> replacement) {
+        Objects.requireNonNull(replacement, "replacement");
+        entries.clear();
+        entries.addAll(replacement);
+        if (entries.isEmpty()) {
+            entries.add(KeyValueEntry.empty());
+        }
+    }
+
     public void update(UUID id, String key, String value, boolean enabled) {
         Objects.requireNonNull(id, "id");
         for (int index = 0; index < entries.size(); index++) {

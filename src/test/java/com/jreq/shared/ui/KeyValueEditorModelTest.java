@@ -4,6 +4,7 @@ import com.jreq.request.domain.KeyValueEntry;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,5 +29,16 @@ class KeyValueEditorModelTest {
         assertThat(model.entries().getFirst().id()).isNotEqualTo(UUID.fromString(
                 "00000000-0000-0000-0000-000000000000"));
         assertThat(model.entries().getFirst().key()).isEmpty();
+    }
+
+    @Test
+    void replacesRowsWhenLoadingARequest() {
+        KeyValueEditorModel model = new KeyValueEditorModel();
+        KeyValueEntry loaded = new KeyValueEntry(
+                UUID.randomUUID(), "Accept", "application/json", true);
+
+        model.replaceEntries(List.of(loaded));
+
+        assertThat(model.entries()).containsExactly(loaded);
     }
 }

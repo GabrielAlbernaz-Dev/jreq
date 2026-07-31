@@ -7,6 +7,29 @@
     -fx-spacing: 6px;
 }
 
+.layout-compact .editor-context-row {
+    -fx-padding: 5px 8px 0 8px;
+}
+
+.layout-compact .variable-feedback {
+    -fx-max-width: 210px;
+    -fx-text-overrun: ELLIPSIS;
+}
+
+.layout-compact .save-button {
+    -fx-min-width: 84px;
+    -fx-pref-width: 84px;
+    -fx-max-width: 84px;
+}
+
+.layout-compact .save-button > .label {
+    -fx-padding: 0 7px 0 9px;
+}
+
+.layout-compact .save-button > .arrow-button {
+    -fx-padding: 0 7px;
+}
+
 .layout-compact .request-bar .method-selector {
     -fx-pref-width: 88px;
     -fx-max-width: 88px;
