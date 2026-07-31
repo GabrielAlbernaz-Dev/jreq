@@ -636,10 +636,14 @@
     -fx-spacing: 10px;
 }
 
-.response-formatting-toggle {
+.response-format-selector {
     -fx-text-fill: -jreq-text-secondary;
     -fx-font-size: 11px;
     -fx-font-weight: 600;
+}
+
+.response-format-selector:format-error {
+    -fx-border-color: -jreq-warning;
 }
 
 .response-metadata .hbox {

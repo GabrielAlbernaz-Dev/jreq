@@ -49,7 +49,7 @@
     -fx-spacing: 6px;
 }
 
-.layout-compact .response-formatting-toggle {
+.layout-compact .response-format-selector {
     -fx-font-size: 10px;
 }
 

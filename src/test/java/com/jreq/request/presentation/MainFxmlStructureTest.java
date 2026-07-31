@@ -30,7 +30,7 @@ class MainFxmlStructureTest {
                     "fx:id=\"headersEditor\"",
                     "fx:id=\"bodyTypeSelector\"",
                     "fx:id=\"variableFeedbackLabel\"",
-                    "fx:id=\"responseFormattingToggle\"",
+                    "fx:id=\"responseFormatSelector\"",
                     "fx:id=\"responseHeaders\"",
                     "fx:id=\"responseRaw\"");
             assertThat(source).contains("COLLECTIONS", "HISTORY", "Response");

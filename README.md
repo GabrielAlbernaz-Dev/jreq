@@ -23,7 +23,7 @@ jREQ is a native JavaFX application for developers who want a focused HTTP works
 - Enabled or disabled query parameters and headers.
 - Body types: none, JSON, and raw text.
 - Asynchronous execution with configurable connection and request timeout.
-- Response status, duration, size, headers, body, and raw views.
+- Response status, duration, size, headers, body, and raw views, with automatic or manually selected JSON, XML, and HTML formatting.
 - Root requests and flat collections with case-insensitive name uniqueness.
 - Request rename, move, duplicate, and delete operations.
 - Collection create, rename, and delete operations.
@@ -58,7 +58,7 @@ cd jreq
 mvn javafx:run
 ```
 
-Maven downloads the required JavaFX, SQLite, Flyway, Jackson, and AtlantaFX dependencies on the first run. The local data directory and database are created automatically when jREQ starts.
+Maven downloads the required JavaFX, SQLite, Flyway, Jackson, jsoup, and AtlantaFX dependencies on the first run. The local data directory and database are created automatically when jREQ starts.
 
 ## Using jREQ
 
@@ -175,6 +175,7 @@ These properties are loaded from the application classpath. After editing them, 
 - Flyway for versioned database migrations.
 - Java `HttpClient` for asynchronous HTTP execution.
 - Jackson for JSON serialization.
+- jsoup for HTML parsing and source formatting.
 - AtlantaFX plus project CSS for the desktop theme.
 - RichTextFX for inline variable-token feedback in the request URL editor.
 - JUnit 5 and AssertJ for tests.
@@ -229,7 +230,7 @@ example, `DatabaseFilename`, `HttpTimeout`, and `HistoryLimit` are validated onc
 HTTP adapters receive values that are already safe to use. Primitive and collection invariants that remain local to
 a model use the shared `Constraints` API, while relational rules between fields stay with the record that owns them.
 
-Database tasks run on a dedicated single-thread executor. HTTP execution uses `HttpClient.sendAsync`, and presentation updates are marshalled back to the JavaFX Application Thread. Multi-step persistence operations can use `JdbcTransactionManager`, which commits on success and rolls back on failure.
+Database tasks and response formatting run on separate dedicated single-thread executors. HTTP execution uses `HttpClient.sendAsync`, and presentation updates are marshalled back to the JavaFX Application Thread. Multi-step persistence operations can use `JdbcTransactionManager`, which commits on success and rolls back on failure.
 
 The composition root is [`ApplicationContext`](src/main/java/com/jreq/bootstrap/ApplicationContext.java); dependencies remain explicit and lifecycle-owned rather than globally mutable.
 

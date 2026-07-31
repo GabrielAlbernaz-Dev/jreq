@@ -24,6 +24,7 @@ import com.jreq.request.domain.RequestExecutionContext;
 import com.jreq.request.domain.RequestLocation;
 import com.jreq.request.domain.SavedRequest;
 import com.jreq.request.domain.WorkspaceName;
+import com.jreq.shared.concurrent.AsyncTaskExecutor;
 import com.jreq.shared.json.JReqObjectMapper;
 import com.jreq.shared.ui.ResponsiveLayoutMode;
 import javafx.application.Platform;
@@ -38,6 +39,7 @@ import javafx.collections.ObservableList;
 
 import java.time.Duration;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -51,6 +53,7 @@ public final class MainViewModel {
     private final WorkspaceService workspaceService;
     private final RequestVariableResolver variableResolver;
     private final ResponseBodyFormatter responseBodyFormatter;
+    private final AsyncTaskExecutor responseFormattingExecutor;
 
     private final ObjectProperty<HttpMethod> selectedMethod =
             new SimpleObjectProperty<>(HttpMethod.GET);
@@ -63,8 +66,13 @@ public final class MainViewModel {
     private final BooleanProperty dirty = new SimpleBooleanProperty(false);
     private final BooleanProperty persisted = new SimpleBooleanProperty(false);
     private final BooleanProperty sidebarExpanded = new SimpleBooleanProperty(true);
-    private final BooleanProperty responseFormattingEnabled = new SimpleBooleanProperty(true);
     private final BooleanProperty responseFormattingAvailable = new SimpleBooleanProperty(false);
+    private final BooleanProperty responseFormattingInProgress = new SimpleBooleanProperty(false);
+    private final ObjectProperty<ResponseFormattingMode> responseFormattingMode =
+            new SimpleObjectProperty<>(ResponseFormattingMode.AUTO);
+    private final ObjectProperty<ResponseBodyFormat> detectedResponseBodyFormat =
+            new SimpleObjectProperty<>(ResponseBodyFormat.TEXT);
+    private final StringProperty responseFormattingFeedback = new SimpleStringProperty("");
     private final StringProperty selectedRequestTab = new SimpleStringProperty("Params");
     private final StringProperty selectedResponseTab = new SimpleStringProperty("Body");
     private final StringProperty responseStatus = new SimpleStringProperty("—");
@@ -97,16 +105,21 @@ public final class MainViewModel {
     private List<KeyValueEntry> headers = List.of(KeyValueEntry.empty());
     private Optional<EditorSnapshot> baseline = Optional.empty();
     private boolean changingEditor;
+    private boolean changingResponseFormattingMode;
     private EnvironmentConfiguration environmentConfiguration = EnvironmentConfiguration.empty();
     private List<EnvironmentActivation> environmentActivations = List.of();
-    private ResponseBodyFormatter.FormattedBody formattedResponseBody =
-            ResponseBodyFormatter.FormattedBody.empty();
+    private ResponseBodyFormatter.PreparedBody preparedResponseBody =
+            ResponseBodyFormatter.PreparedBody.empty();
+    private final EnumMap<ResponseFormattingMode, ResponseBodyFormatter.FormattingResult>
+            responseFormattingCache = new EnumMap<>(ResponseFormattingMode.class);
+    private long responseFormattingRevision;
 
     public MainViewModel(WorkspaceService workspaceService) {
         this(
                 workspaceService,
                 new RequestVariableResolver(),
-                new ResponseBodyFormatter(JReqObjectMapper.create()));
+                new ResponseBodyFormatter(JReqObjectMapper.create()),
+                AsyncTaskExecutor.direct());
     }
 
     public MainViewModel(
@@ -114,14 +127,29 @@ public final class MainViewModel {
             RequestVariableResolver variableResolver,
             ResponseBodyFormatter responseBodyFormatter
     ) {
+        this(workspaceService, variableResolver, responseBodyFormatter, AsyncTaskExecutor.direct());
+    }
+
+    public MainViewModel(
+            WorkspaceService workspaceService,
+            RequestVariableResolver variableResolver,
+            ResponseBodyFormatter responseBodyFormatter,
+            AsyncTaskExecutor responseFormattingExecutor
+    ) {
         this.workspaceService = Objects.requireNonNull(workspaceService, "workspaceService");
         this.variableResolver = Objects.requireNonNull(variableResolver, "variableResolver");
         this.responseBodyFormatter = Objects.requireNonNull(responseBodyFormatter, "responseBodyFormatter");
+        this.responseFormattingExecutor =
+                Objects.requireNonNull(responseFormattingExecutor, "responseFormattingExecutor");
         selectedMethod.addListener((observable, oldValue, newValue) -> recomputeDirty());
         url.addListener((observable, oldValue, newValue) -> editorValueChanged());
         bodyType.addListener((observable, oldValue, newValue) -> editorValueChanged());
         requestBody.addListener((observable, oldValue, newValue) -> editorValueChanged());
-        responseFormattingEnabled.addListener((observable, oldValue, newValue) -> refreshResponseBody());
+        responseFormattingMode.addListener((observable, oldValue, newValue) -> {
+            if (!changingResponseFormattingMode && newValue != null) {
+                requestResponseFormatting();
+            }
+        });
         requestLocation.addListener((observable, oldValue, newValue) -> {
             recomputeDirty();
             syncSelectedEnvironment();
@@ -579,9 +607,7 @@ public final class MainViewModel {
             responseStatus.set(Integer.toString(success.statusCode()));
             responseDuration.set(formatDuration(success.duration()));
             responseSize.set(formatSize(success.size()));
-            formattedResponseBody = responseBodyFormatter.prepare(success);
-            responseFormattingAvailable.set(formattedResponseBody.json());
-            refreshResponseBody();
+            prepareResponseBody(responseBodyFormatter.prepare(success));
             String formattedHeaders = success.headers().entrySet().stream()
                     .sorted(java.util.Map.Entry.comparingByKey(String.CASE_INSENSITIVE_ORDER))
                     .flatMap(entry -> entry.getValue().stream()
@@ -590,7 +616,7 @@ public final class MainViewModel {
             responseHeaders.set(formattedHeaders);
             responseRaw.set("HTTP " + success.statusCode()
                     + (formattedHeaders.isEmpty() ? "" : "\n" + formattedHeaders)
-                    + "\n\n" + success.bodyAsUtf8());
+                    + "\n\n" + preparedResponseBody.original());
         } else {
             HttpResponseFailure failure = (HttpResponseFailure) result;
             responseStatus.set("ERROR");
@@ -612,13 +638,105 @@ public final class MainViewModel {
     }
 
     private void setPlainResponseBody(String body) {
-        formattedResponseBody = ResponseBodyFormatter.FormattedBody.plain(body);
+        responseFormattingRevision++;
+        preparedResponseBody = new ResponseBodyFormatter.PreparedBody(
+                body, ResponseBodyFormat.TEXT);
+        responseFormattingCache.clear();
+        resetResponseFormattingMode();
         responseFormattingAvailable.set(false);
-        refreshResponseBody();
+        responseFormattingInProgress.set(false);
+        detectedResponseBodyFormat.set(ResponseBodyFormat.TEXT);
+        responseFormattingFeedback.set("");
+        responseBody.set(body);
     }
 
-    private void refreshResponseBody() {
-        responseBody.set(formattedResponseBody.displayed(responseFormattingEnabled.get()));
+    private void prepareResponseBody(ResponseBodyFormatter.PreparedBody preparedBody) {
+        responseFormattingRevision++;
+        preparedResponseBody = preparedBody;
+        responseFormattingCache.clear();
+        resetResponseFormattingMode();
+        responseFormattingAvailable.set(!preparedBody.original().isBlank());
+        responseFormattingInProgress.set(false);
+        detectedResponseBodyFormat.set(preparedBody.hintedFormat());
+        responseFormattingFeedback.set("");
+        responseBody.set(preparedBody.original());
+        if (responseFormattingAvailable.get()) {
+            requestResponseFormatting();
+        }
+    }
+
+    private void resetResponseFormattingMode() {
+        changingResponseFormattingMode = true;
+        responseFormattingMode.set(ResponseFormattingMode.AUTO);
+        changingResponseFormattingMode = false;
+    }
+
+    private void requestResponseFormatting() {
+        if (!responseFormattingAvailable.get()) {
+            return;
+        }
+        ResponseFormattingMode mode = responseFormattingMode.get();
+        long revision = ++responseFormattingRevision;
+        responseFormattingFeedback.set("");
+
+        ResponseBodyFormatter.FormattingResult cached = responseFormattingCache.get(mode);
+        if (cached != null) {
+            applyFormattingResult(revision, mode, cached);
+            return;
+        }
+        if (mode == ResponseFormattingMode.ORIGINAL) {
+            ResponseBodyFormatter.FormattingResult original =
+                    responseBodyFormatter.format(preparedResponseBody, mode);
+            responseFormattingCache.put(mode, original);
+            applyFormattingResult(revision, mode, original);
+            return;
+        }
+
+        responseBody.set(preparedResponseBody.original());
+        responseFormattingInProgress.set(true);
+        ResponseBodyFormatter.PreparedBody bodyToFormat = preparedResponseBody;
+        CompletableFuture<ResponseBodyFormatter.FormattingResult> formatting =
+                responseFormattingExecutor.submit(() ->
+                        responseBodyFormatter.format(bodyToFormat, mode));
+        if (formatting.isDone()) {
+            formatting.whenComplete((result, failure) ->
+                    completeResponseFormatting(revision, mode, result, failure));
+        } else {
+            formatting.whenComplete((result, failure) -> onFx(() ->
+                    completeResponseFormatting(revision, mode, result, failure)));
+        }
+    }
+
+    private void completeResponseFormatting(
+            long revision,
+            ResponseFormattingMode mode,
+            ResponseBodyFormatter.FormattingResult result,
+            Throwable failure
+    ) {
+        if (revision != responseFormattingRevision) {
+            return;
+        }
+        ResponseBodyFormatter.FormattingResult completed = failure == null
+                ? result
+                : responseBodyFormatter.failed(preparedResponseBody, mode);
+        responseFormattingCache.put(mode, completed);
+        applyFormattingResult(revision, mode, completed);
+    }
+
+    private void applyFormattingResult(
+            long revision,
+            ResponseFormattingMode mode,
+            ResponseBodyFormatter.FormattingResult result
+    ) {
+        if (revision != responseFormattingRevision || mode != responseFormattingMode.get()) {
+            return;
+        }
+        responseFormattingInProgress.set(false);
+        responseBody.set(result.displayed());
+        responseFormattingFeedback.set(result.feedback());
+        if (mode == ResponseFormattingMode.AUTO) {
+            detectedResponseBodyFormat.set(result.detectedFormat());
+        }
     }
 
     private String formatDuration(Duration duration) {
@@ -652,7 +770,11 @@ public final class MainViewModel {
         if (Platform.isFxApplicationThread()) {
             action.run();
         } else {
-            Platform.runLater(action);
+            try {
+                Platform.runLater(action);
+            } catch (IllegalStateException toolkitNotInitialized) {
+                action.run();
+            }
         }
     }
 
@@ -669,8 +791,15 @@ public final class MainViewModel {
     public BooleanProperty dirtyProperty() { return dirty; }
     public BooleanProperty persistedProperty() { return persisted; }
     public BooleanProperty sidebarExpandedProperty() { return sidebarExpanded; }
-    public BooleanProperty responseFormattingEnabledProperty() { return responseFormattingEnabled; }
     public BooleanProperty responseFormattingAvailableProperty() { return responseFormattingAvailable; }
+    public BooleanProperty responseFormattingInProgressProperty() { return responseFormattingInProgress; }
+    public ObjectProperty<ResponseFormattingMode> responseFormattingModeProperty() {
+        return responseFormattingMode;
+    }
+    public ObjectProperty<ResponseBodyFormat> detectedResponseBodyFormatProperty() {
+        return detectedResponseBodyFormat;
+    }
+    public StringProperty responseFormattingFeedbackProperty() { return responseFormattingFeedback; }
     public StringProperty selectedRequestTabProperty() { return selectedRequestTab; }
     public StringProperty selectedResponseTabProperty() { return selectedResponseTab; }
     public StringProperty responseStatusProperty() { return responseStatus; }

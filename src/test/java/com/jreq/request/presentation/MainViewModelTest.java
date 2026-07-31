@@ -3,6 +3,7 @@ package com.jreq.request.presentation;
 import com.jreq.bootstrap.DatabaseInitializer;
 import com.jreq.request.application.HttpResponseFailure;
 import com.jreq.request.application.HttpResponseSuccess;
+import com.jreq.request.application.RequestVariableResolver;
 import com.jreq.request.application.WorkspaceService;
 import com.jreq.request.domain.HttpMethod;
 import com.jreq.request.domain.HttpRequestDefinition;
@@ -16,9 +17,10 @@ import com.jreq.request.infrastructure.persistence.JdbcCollectionRepository;
 import com.jreq.request.infrastructure.persistence.JdbcEnvironmentRepository;
 import com.jreq.request.infrastructure.persistence.JdbcRequestHistoryRepository;
 import com.jreq.request.infrastructure.persistence.JdbcSavedRequestRepository;
+import com.jreq.shared.concurrent.AsyncTaskExecutor;
+import com.jreq.shared.concurrent.ExecutorServiceTaskExecutor;
 import com.jreq.shared.database.JdbcTransactionManager;
 import com.jreq.shared.database.SqliteConnectionFactory;
-import com.jreq.shared.concurrent.ExecutorServiceTaskExecutor;
 import com.jreq.shared.exception.ErrorCategory;
 import com.jreq.shared.json.JReqObjectMapper;
 import org.junit.jupiter.api.AfterEach;
@@ -30,9 +32,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,6 +46,7 @@ class MainViewModelTest {
     Path temporaryDirectory;
 
     private ExecutorServiceTaskExecutor databaseExecutor;
+    private WorkspaceService workspaceService;
     private MainViewModel viewModel;
 
     @BeforeEach
@@ -51,7 +56,7 @@ class MainViewModelTest {
         var mapper = JReqObjectMapper.create();
         var transactionManager = new JdbcTransactionManager(factory);
         databaseExecutor = ExecutorServiceTaskExecutor.singleThread("view-model-test-database");
-        WorkspaceService service = new WorkspaceService(
+        workspaceService = new WorkspaceService(
                 new JdbcCollectionRepository(factory, transactionManager, mapper),
                 new JdbcSavedRequestRepository(factory, mapper),
                 new JdbcRequestHistoryRepository(factory, transactionManager, mapper),
@@ -59,8 +64,8 @@ class MainViewModelTest {
                 request -> CompletableFuture.completedFuture(new HttpResponseFailure(
                         ErrorCategory.UNKNOWN, "Failure", Duration.ZERO)),
                 databaseExecutor,
-                new com.jreq.request.application.RequestVariableResolver());
-        viewModel = new MainViewModel(service);
+                new RequestVariableResolver());
+        viewModel = new MainViewModel(workspaceService);
     }
 
     @AfterEach
@@ -153,13 +158,78 @@ class MainViewModelTest {
                         }""");
         assertThat(viewModel.responseFormattingAvailableProperty().get()).isTrue();
 
-        viewModel.responseFormattingEnabledProperty().set(false);
+        viewModel.responseFormattingModeProperty().set(ResponseFormattingMode.ORIGINAL);
 
         assertThat(viewModel.responseBodyProperty().get()).isEqualTo(compactJson);
-        viewModel.responseFormattingEnabledProperty().set(true);
+        viewModel.responseFormattingModeProperty().set(ResponseFormattingMode.JSON);
         assertThat(viewModel.responseBodyProperty().get()).contains("\n");
         assertThat(viewModel.responseRawProperty().get())
                 .endsWith("\n\n" + compactJson);
+    }
+
+    @Test
+    void resetsToAutoAndReportsInvalidManualFormats() {
+        viewModel.openHistory(historyEntry("Plain", "Request completed", "text/plain"));
+
+        viewModel.responseFormattingModeProperty().set(ResponseFormattingMode.XML);
+
+        assertThat(viewModel.responseBodyProperty().get()).isEqualTo("Request completed");
+        assertThat(viewModel.responseFormattingFeedbackProperty().get())
+                .contains("Could not format as XML");
+
+        viewModel.openHistory(historyEntry(
+                "XML", "<root><value>ok</value></root>", "application/xml"));
+
+        assertThat(viewModel.responseFormattingModeProperty().get())
+                .isEqualTo(ResponseFormattingMode.AUTO);
+        assertThat(viewModel.detectedResponseBodyFormatProperty().get())
+                .isEqualTo(ResponseBodyFormat.XML);
+        assertThat(viewModel.responseBodyProperty().get()).contains("\n");
+    }
+
+    @Test
+    void cachesFormattingResultsForTheCurrentResponse() {
+        CountingDirectExecutor formattingExecutor = new CountingDirectExecutor();
+        MainViewModel asynchronousViewModel = new MainViewModel(
+                workspaceService,
+                new RequestVariableResolver(),
+                new ResponseBodyFormatter(JReqObjectMapper.create()),
+                formattingExecutor);
+        asynchronousViewModel.openHistory(historyEntry(
+                "JSON", "{\"result\":true}", "application/json"));
+
+        asynchronousViewModel.responseFormattingModeProperty().set(ResponseFormattingMode.ORIGINAL);
+        asynchronousViewModel.responseFormattingModeProperty().set(ResponseFormattingMode.AUTO);
+        asynchronousViewModel.responseFormattingModeProperty().set(ResponseFormattingMode.JSON);
+        asynchronousViewModel.responseFormattingModeProperty().set(ResponseFormattingMode.ORIGINAL);
+        asynchronousViewModel.responseFormattingModeProperty().set(ResponseFormattingMode.JSON);
+
+        assertThat(formattingExecutor.submissionCount()).isEqualTo(2);
+    }
+
+    @Test
+    void ignoresFormattingThatCompletesForAnOlderResponse() {
+        QueuedTaskExecutor formattingExecutor = new QueuedTaskExecutor();
+        MainViewModel asynchronousViewModel = new MainViewModel(
+                workspaceService,
+                new RequestVariableResolver(),
+                new ResponseBodyFormatter(JReqObjectMapper.create()),
+                formattingExecutor);
+        asynchronousViewModel.openHistory(historyEntry(
+                "First", "{\"response\":\"first\"}", "application/json"));
+        asynchronousViewModel.openHistory(historyEntry(
+                "Second", "{\"response\":\"second\"}", "application/json"));
+
+        formattingExecutor.complete(0);
+
+        assertThat(asynchronousViewModel.responseBodyProperty().get())
+                .isEqualTo("{\"response\":\"second\"}");
+
+        formattingExecutor.complete(1);
+
+        assertThat(asynchronousViewModel.responseBodyProperty().get())
+                .contains("\"response\": \"second\"")
+                .doesNotContain("\"response\": \"first\"");
     }
 
     @Test
@@ -175,5 +245,63 @@ class MainViewModelTest {
         assertThat(viewModel.variableFeedbackStateProperty().get())
                 .isEqualTo(VariableFeedbackState.NONE);
         assertThat(viewModel.variableFeedbackProperty().get()).isEmpty();
+    }
+
+    private RequestHistoryEntry historyEntry(String name, String body, String contentType) {
+        HttpRequestDefinition definition = new HttpRequestDefinition(
+                UUID.randomUUID(), name, HttpMethod.GET, "https://example.com/response",
+                List.of(), List.of(), RequestBody.none());
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        HttpResponseSuccess response = new HttpResponseSuccess(
+                200,
+                Map.of("content-type", List.of(contentType)),
+                bytes,
+                Duration.ofMillis(10),
+                bytes.length);
+        return new RequestHistoryEntry(
+                UUID.randomUUID(), name, definition, response, Instant.now());
+    }
+
+    private static final class CountingDirectExecutor implements AsyncTaskExecutor {
+        private int submissionCount;
+
+        @Override
+        public <T> CompletableFuture<T> submit(Callable<T> task) {
+            submissionCount++;
+            try {
+                return CompletableFuture.completedFuture(task.call());
+            } catch (Exception failure) {
+                return CompletableFuture.failedFuture(failure);
+            }
+        }
+
+        private int submissionCount() {
+            return submissionCount;
+        }
+    }
+
+    private static final class QueuedTaskExecutor implements AsyncTaskExecutor {
+        private final List<PendingTask<?>> tasks = new ArrayList<>();
+
+        @Override
+        public <T> CompletableFuture<T> submit(Callable<T> task) {
+            CompletableFuture<T> future = new CompletableFuture<>();
+            tasks.add(new PendingTask<>(task, future));
+            return future;
+        }
+
+        private void complete(int index) {
+            tasks.get(index).complete();
+        }
+    }
+
+    private record PendingTask<T>(Callable<T> task, CompletableFuture<T> future) {
+        private void complete() {
+            try {
+                future.complete(task.call());
+            } catch (Exception failure) {
+                future.completeExceptionally(failure);
+            }
+        }
     }
 }

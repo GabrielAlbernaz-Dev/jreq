@@ -1,103 +1,150 @@
 package com.jreq.request.presentation;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.util.DefaultIndenter;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
-import com.fasterxml.jackson.core.util.Separators;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.jreq.request.application.HttpResponseSuccess;
 
+import java.util.EnumMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 public final class ResponseBodyFormatter {
-    private static final String CONTENT_TYPE = "content-type";
-
-    private final ObjectMapper objectMapper;
-    private final ObjectWriter prettyWriter;
+    private final ResponseBodyDecoder decoder = new ResponseBodyDecoder();
+    private final List<ResponseContentFormatter> formatters;
+    private final Map<ResponseBodyFormat, ResponseContentFormatter> formatterByType;
 
     public ResponseBodyFormatter(ObjectMapper objectMapper) {
-        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
-        DefaultIndenter indenter = new DefaultIndenter("  ", "\n");
-        Separators separators = Separators.createDefaultInstance()
-                .withObjectFieldValueSpacing(Separators.Spacing.AFTER);
-        DefaultPrettyPrinter prettyPrinter = new DefaultPrettyPrinter(separators)
-                .withObjectIndenter(indenter)
-                .withArrayIndenter(indenter);
-        this.prettyWriter = objectMapper.writer(prettyPrinter);
+        formatters = List.of(
+                new JsonResponseContentFormatter(objectMapper),
+                new XmlResponseContentFormatter(),
+                new HtmlResponseContentFormatter());
+        formatterByType = new EnumMap<>(ResponseBodyFormat.class);
+        formatters.forEach(formatter -> formatterByType.put(formatter.format(), formatter));
     }
 
-    public String format(HttpResponseSuccess response) {
-        return prepare(response).formatted();
-    }
-
-    public FormattedBody prepare(HttpResponseSuccess response) {
+    public PreparedBody prepare(HttpResponseSuccess response) {
         Objects.requireNonNull(response, "response");
-        String body = response.bodyAsUtf8();
-        if (body.isBlank() || !shouldTryJson(response.headers(), body)) {
-            return FormattedBody.plain(body);
+        ResponseBodyDecoder.DecodedResponseBody decoded = decoder.decode(response);
+        return new PreparedBody(
+                decoded.text(),
+                hintedFormat(decoded.mediaType()));
+    }
+
+    public FormattingResult format(PreparedBody body, ResponseFormattingMode mode) {
+        Objects.requireNonNull(body, "body");
+        Objects.requireNonNull(mode, "mode");
+        if (mode == ResponseFormattingMode.ORIGINAL || body.original().isBlank()) {
+            return FormattingResult.original(body.original(), body.hintedFormat());
+        }
+        if (mode == ResponseFormattingMode.AUTO) {
+            return autoFormat(body);
         }
 
-        try {
-            JsonNode json = objectMapper.reader()
-                    .with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
-                    .readTree(body);
-            return FormattedBody.json(body, prettyWriter.writeValueAsString(json));
-        } catch (JsonProcessingException ignored) {
-            return FormattedBody.plain(body);
+        ResponseBodyFormat requestedFormat = formatFor(mode);
+        return attempt(body.original(), formatterByType.get(requestedFormat))
+                .orElseGet(() -> FormattingResult.invalid(
+                        body.original(),
+                        requestedFormat,
+                        "Could not format as " + requestedFormat + "; showing original."));
+    }
+
+    public FormattingResult failed(PreparedBody body, ResponseFormattingMode mode) {
+        ResponseBodyFormat format = mode == ResponseFormattingMode.AUTO
+                ? body.hintedFormat()
+                : formatFor(mode);
+        return FormattingResult.invalid(
+                body.original(), format, "Unable to format the response; showing original.");
+    }
+
+    private FormattingResult autoFormat(PreparedBody body) {
+        if (body.hintedFormat() != ResponseBodyFormat.TEXT) {
+            Optional<FormattingResult> hinted = attempt(
+                    body.original(), formatterByType.get(body.hintedFormat()));
+            if (hinted.isPresent()) {
+                return hinted.get();
+            }
         }
+
+        for (ResponseContentFormatter formatter : formatters) {
+            if (formatter.format() != body.hintedFormat() && formatter.looksLike(body.original())) {
+                Optional<FormattingResult> detected = attempt(body.original(), formatter);
+                if (detected.isPresent()) {
+                    return detected.get();
+                }
+            }
+        }
+        return FormattingResult.original(body.original(), ResponseBodyFormat.TEXT);
     }
 
-    private boolean shouldTryJson(Map<String, List<String>> headers, String body) {
-        return hasJsonContentType(headers) || looksLikeStructuredJson(body);
+    private Optional<FormattingResult> attempt(String original, ResponseContentFormatter formatter) {
+        if (formatter == null) {
+            return Optional.empty();
+        }
+        return formatter.prettyPrint(original)
+                .map(formatted -> FormattingResult.formatted(original, formatted, formatter.format()));
     }
 
-    private boolean hasJsonContentType(Map<String, List<String>> headers) {
-        return headers.entrySet().stream()
-                .filter(entry -> CONTENT_TYPE.equalsIgnoreCase(entry.getKey()))
-                .flatMap(entry -> entry.getValue().stream())
-                .map(this::mediaType)
-                .anyMatch(type -> type.equals("application/json") || type.endsWith("+json"));
+    private ResponseBodyFormat hintedFormat(String mediaType) {
+        return formatters.stream()
+                .filter(formatter -> formatter.supports(mediaType))
+                .map(ResponseContentFormatter::format)
+                .findFirst()
+                .orElse(ResponseBodyFormat.TEXT);
     }
 
-    private String mediaType(String headerValue) {
-        int parametersStart = headerValue.indexOf(';');
-        String value = parametersStart >= 0
-                ? headerValue.substring(0, parametersStart)
-                : headerValue;
-        return value.trim().toLowerCase(Locale.ROOT);
+    private ResponseBodyFormat formatFor(ResponseFormattingMode mode) {
+        return switch (mode) {
+            case JSON -> ResponseBodyFormat.JSON;
+            case XML -> ResponseBodyFormat.XML;
+            case HTML -> ResponseBodyFormat.HTML;
+            case AUTO, ORIGINAL -> ResponseBodyFormat.TEXT;
+        };
     }
 
-    private boolean looksLikeStructuredJson(String body) {
-        String stripped = body.stripLeading();
-        return stripped.startsWith("{") || stripped.startsWith("[");
-    }
-
-    public record FormattedBody(String original, String formatted, boolean json) {
-        public FormattedBody {
+    public record PreparedBody(String original, ResponseBodyFormat hintedFormat) {
+        public PreparedBody {
             Objects.requireNonNull(original, "original");
-            Objects.requireNonNull(formatted, "formatted");
+            Objects.requireNonNull(hintedFormat, "hintedFormat");
         }
 
-        public static FormattedBody empty() {
-            return plain("");
+        public static PreparedBody empty() {
+            return new PreparedBody("", ResponseBodyFormat.TEXT);
+        }
+    }
+
+    public record FormattingResult(
+            String original,
+            String displayed,
+            ResponseBodyFormat detectedFormat,
+            boolean formatted,
+            String feedback
+    ) {
+        public FormattingResult {
+            Objects.requireNonNull(original, "original");
+            Objects.requireNonNull(displayed, "displayed");
+            Objects.requireNonNull(detectedFormat, "detectedFormat");
+            Objects.requireNonNull(feedback, "feedback");
         }
 
-        public static FormattedBody plain(String body) {
-            return new FormattedBody(body, body, false);
+        public static FormattingResult formatted(
+                String original,
+                String displayed,
+                ResponseBodyFormat detectedFormat
+        ) {
+            return new FormattingResult(original, displayed, detectedFormat, true, "");
         }
 
-        public static FormattedBody json(String original, String formatted) {
-            return new FormattedBody(original, formatted, true);
+        public static FormattingResult original(String original, ResponseBodyFormat detectedFormat) {
+            return new FormattingResult(original, original, detectedFormat, false, "");
         }
 
-        public String displayed(boolean formattingEnabled) {
-            return formattingEnabled && json ? formatted : original;
+        public static FormattingResult invalid(
+                String original,
+                ResponseBodyFormat detectedFormat,
+                String feedback
+        ) {
+            return new FormattingResult(original, original, detectedFormat, false, feedback);
         }
     }
 }

@@ -16,12 +16,13 @@ import com.jreq.shared.ui.components.ResponseMetadataView;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
@@ -41,6 +42,8 @@ import java.util.List;
 import java.util.Objects;
 
 public final class MainController implements WorkspaceSidebar.Actions {
+    private static final PseudoClass FORMAT_ERROR = PseudoClass.getPseudoClass("format-error");
+
     private final MainViewModel viewModel;
 
     @FXML private BorderPane mainRoot;
@@ -51,7 +54,7 @@ public final class MainController implements WorkspaceSidebar.Actions {
     @FXML private TabPane requestTabs;
     @FXML private TabPane responseTabs;
     @FXML private ResponseMetadataView responseMetadata;
-    @FXML private CheckBox responseFormattingToggle;
+    @FXML private ComboBox<ResponseFormattingMode> responseFormatSelector;
     @FXML private TextArea responseBody;
     @FXML private TextArea responseHeaders;
     @FXML private TextArea responseRaw;
@@ -175,14 +178,92 @@ public final class MainController implements WorkspaceSidebar.Actions {
         responseMetadata.statusProperty().bind(viewModel.responseStatusProperty());
         responseMetadata.durationProperty().bind(viewModel.responseDurationProperty());
         responseMetadata.sizeProperty().bind(viewModel.responseSizeProperty());
-        responseFormattingToggle.selectedProperty()
-                .bindBidirectional(viewModel.responseFormattingEnabledProperty());
-        responseFormattingToggle.disableProperty()
-                .bind(viewModel.responseFormattingAvailableProperty().not());
+        configureResponseFormatSelector();
         responseBody.textProperty().bind(viewModel.responseBodyProperty());
         responseHeaders.textProperty().bind(viewModel.responseHeadersProperty());
         responseRaw.textProperty().bind(viewModel.responseRawProperty());
         statusMessage.textProperty().bind(viewModel.statusMessageProperty());
+    }
+
+    private void configureResponseFormatSelector() {
+        responseFormatSelector.setItems(
+                FXCollections.observableArrayList(ResponseFormattingMode.values()));
+        responseFormatSelector.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(ResponseFormattingMode mode) {
+                return responseFormattingModeLabel(mode, false);
+            }
+
+            @Override
+            public ResponseFormattingMode fromString(String value) {
+                throw new UnsupportedOperationException(
+                        "Response format is selected from a fixed list");
+            }
+        });
+        responseFormatSelector.setCellFactory(list -> new ResponseFormattingModeCell(false));
+        ResponseFormattingModeCell buttonCell = new ResponseFormattingModeCell(true);
+        responseFormatSelector.setButtonCell(buttonCell);
+        responseFormatSelector.valueProperty()
+                .bindBidirectional(viewModel.responseFormattingModeProperty());
+        responseFormatSelector.disableProperty().bind(
+                viewModel.responseFormattingAvailableProperty().not()
+                        .or(viewModel.responseFormattingInProgressProperty()));
+
+        viewModel.detectedResponseBodyFormatProperty().addListener(
+                (observable, oldValue, newValue) -> buttonCell.refresh());
+        viewModel.responseFormattingAvailableProperty().addListener(
+                (observable, oldValue, newValue) -> buttonCell.refresh());
+        viewModel.responseFormattingFeedbackProperty().addListener(
+                (observable, oldValue, newValue) -> applyResponseFormattingFeedback(newValue));
+        applyResponseFormattingFeedback(viewModel.responseFormattingFeedbackProperty().get());
+
+        Tooltip tooltip = new Tooltip();
+        tooltip.textProperty().bind(Bindings.createStringBinding(
+                this::responseFormattingTooltip,
+                viewModel.responseFormattingFeedbackProperty(),
+                viewModel.responseFormattingInProgressProperty(),
+                viewModel.detectedResponseBodyFormatProperty()));
+        responseFormatSelector.setTooltip(tooltip);
+    }
+
+    private void applyResponseFormattingFeedback(String feedback) {
+        responseFormatSelector.pseudoClassStateChanged(
+                FORMAT_ERROR, feedback != null && !feedback.isBlank());
+    }
+
+    private String responseFormattingTooltip() {
+        if (viewModel.responseFormattingInProgressProperty().get()) {
+            return "Formatting response…";
+        }
+        String feedback = viewModel.responseFormattingFeedbackProperty().get();
+        if (feedback != null && !feedback.isBlank()) {
+            return feedback;
+        }
+        return "Choose how the response body is displayed";
+    }
+
+    private String responseFormattingModeLabel(ResponseFormattingMode mode, boolean showDetection) {
+        if (mode == null) {
+            return "";
+        }
+        return switch (mode) {
+            case AUTO -> showDetection && viewModel.responseFormattingAvailableProperty().get()
+                    ? "Auto · " + detectedFormatLabel(viewModel.detectedResponseBodyFormatProperty().get())
+                    : "Auto";
+            case JSON -> "JSON";
+            case XML -> "XML";
+            case HTML -> "HTML";
+            case ORIGINAL -> "Original";
+        };
+    }
+
+    private String detectedFormatLabel(ResponseBodyFormat format) {
+        return switch (format) {
+            case JSON -> "JSON";
+            case XML -> "XML";
+            case HTML -> "HTML";
+            case TEXT -> "Original";
+        };
     }
 
     private void bindNavigation() {
@@ -461,5 +542,25 @@ public final class MainController implements WorkspaceSidebar.Actions {
 
     private String tabText(Tab tab) {
         return tab == null ? "" : tab.getText();
+    }
+
+    private final class ResponseFormattingModeCell extends ListCell<ResponseFormattingMode> {
+        private final boolean showDetection;
+
+        private ResponseFormattingModeCell(boolean showDetection) {
+            this.showDetection = showDetection;
+        }
+
+        @Override
+        protected void updateItem(ResponseFormattingMode mode, boolean empty) {
+            super.updateItem(mode, empty);
+            setText(empty ? "" : responseFormattingModeLabel(mode, showDetection));
+        }
+
+        private void refresh() {
+            if (!isEmpty()) {
+                setText(responseFormattingModeLabel(getItem(), showDetection));
+            }
+        }
     }
 }

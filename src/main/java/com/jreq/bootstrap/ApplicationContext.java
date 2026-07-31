@@ -23,19 +23,23 @@ import com.jreq.shared.json.JReqObjectMapper;
 
 public final class ApplicationContext implements AutoCloseable {
     private static final String DATABASE_THREAD_NAME = "jreq-database";
+    private static final String RESPONSE_FORMATTING_THREAD_NAME = "jreq-response-formatting";
 
     private final ApplicationConfiguration configuration;
     private final MainViewModel mainViewModel;
     private final ExecutorServiceTaskExecutor databaseExecutor;
+    private final ExecutorServiceTaskExecutor responseFormattingExecutor;
 
     private ApplicationContext(
             ApplicationConfiguration configuration,
             MainViewModel mainViewModel,
-            ExecutorServiceTaskExecutor databaseExecutor
+            ExecutorServiceTaskExecutor databaseExecutor,
+            ExecutorServiceTaskExecutor responseFormattingExecutor
     ) {
         this.configuration = configuration;
         this.mainViewModel = mainViewModel;
         this.databaseExecutor = databaseExecutor;
+        this.responseFormattingExecutor = responseFormattingExecutor;
     }
 
     public static ApplicationContext create() {
@@ -43,9 +47,13 @@ public final class ApplicationContext implements AutoCloseable {
         PersistenceComponents persistence = initializePersistence(configuration);
         ExecutorServiceTaskExecutor databaseExecutor =
                 ExecutorServiceTaskExecutor.singleThread(DATABASE_THREAD_NAME);
+        ExecutorServiceTaskExecutor responseFormattingExecutor =
+                ExecutorServiceTaskExecutor.singleThread(RESPONSE_FORMATTING_THREAD_NAME);
         try {
-            return composeApplication(configuration, persistence, databaseExecutor);
+            return composeApplication(
+                    configuration, persistence, databaseExecutor, responseFormattingExecutor);
         } catch (RuntimeException | Error failure) {
+            responseFormattingExecutor.close();
             databaseExecutor.close();
             throw failure;
         }
@@ -81,7 +89,8 @@ public final class ApplicationContext implements AutoCloseable {
     private static ApplicationContext composeApplication(
             ApplicationConfiguration configuration,
             PersistenceComponents persistence,
-            ExecutorServiceTaskExecutor databaseExecutor
+            ExecutorServiceTaskExecutor databaseExecutor,
+            ExecutorServiceTaskExecutor responseFormattingExecutor
     ) {
         HttpExecutor httpExecutor = new JavaHttpExecutor(configuration.httpTimeout());
         RequestVariableResolver variableResolver = new RequestVariableResolver();
@@ -98,8 +107,10 @@ public final class ApplicationContext implements AutoCloseable {
                 new MainViewModel(
                         workspaceService,
                         variableResolver,
-                        new ResponseBodyFormatter(persistence.objectMapper())),
-                databaseExecutor);
+                        new ResponseBodyFormatter(persistence.objectMapper()),
+                        responseFormattingExecutor),
+                databaseExecutor,
+                responseFormattingExecutor);
     }
 
     public Object createController(Class<?> controllerType) {
@@ -115,6 +126,7 @@ public final class ApplicationContext implements AutoCloseable {
 
     @Override
     public void close() {
+        responseFormattingExecutor.close();
         databaseExecutor.close();
     }
 
