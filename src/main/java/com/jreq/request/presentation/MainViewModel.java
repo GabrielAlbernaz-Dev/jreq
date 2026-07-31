@@ -24,6 +24,7 @@ import com.jreq.request.domain.RequestExecutionContext;
 import com.jreq.request.domain.RequestLocation;
 import com.jreq.request.domain.SavedRequest;
 import com.jreq.request.domain.WorkspaceName;
+import com.jreq.shared.json.JReqObjectMapper;
 import com.jreq.shared.ui.ResponsiveLayoutMode;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -49,6 +50,7 @@ import java.util.function.Consumer;
 public final class MainViewModel {
     private final WorkspaceService workspaceService;
     private final RequestVariableResolver variableResolver;
+    private final ResponseBodyFormatter responseBodyFormatter;
 
     private final ObjectProperty<HttpMethod> selectedMethod =
             new SimpleObjectProperty<>(HttpMethod.GET);
@@ -61,6 +63,8 @@ public final class MainViewModel {
     private final BooleanProperty dirty = new SimpleBooleanProperty(false);
     private final BooleanProperty persisted = new SimpleBooleanProperty(false);
     private final BooleanProperty sidebarExpanded = new SimpleBooleanProperty(true);
+    private final BooleanProperty responseFormattingEnabled = new SimpleBooleanProperty(true);
+    private final BooleanProperty responseFormattingAvailable = new SimpleBooleanProperty(false);
     private final StringProperty selectedRequestTab = new SimpleStringProperty("Params");
     private final StringProperty selectedResponseTab = new SimpleStringProperty("Body");
     private final StringProperty responseStatus = new SimpleStringProperty("—");
@@ -95,18 +99,29 @@ public final class MainViewModel {
     private boolean changingEditor;
     private EnvironmentConfiguration environmentConfiguration = EnvironmentConfiguration.empty();
     private List<EnvironmentActivation> environmentActivations = List.of();
+    private ResponseBodyFormatter.FormattedBody formattedResponseBody =
+            ResponseBodyFormatter.FormattedBody.empty();
 
     public MainViewModel(WorkspaceService workspaceService) {
-        this(workspaceService, new RequestVariableResolver());
+        this(
+                workspaceService,
+                new RequestVariableResolver(),
+                new ResponseBodyFormatter(JReqObjectMapper.create()));
     }
 
-    public MainViewModel(WorkspaceService workspaceService, RequestVariableResolver variableResolver) {
+    public MainViewModel(
+            WorkspaceService workspaceService,
+            RequestVariableResolver variableResolver,
+            ResponseBodyFormatter responseBodyFormatter
+    ) {
         this.workspaceService = Objects.requireNonNull(workspaceService, "workspaceService");
         this.variableResolver = Objects.requireNonNull(variableResolver, "variableResolver");
+        this.responseBodyFormatter = Objects.requireNonNull(responseBodyFormatter, "responseBodyFormatter");
         selectedMethod.addListener((observable, oldValue, newValue) -> recomputeDirty());
         url.addListener((observable, oldValue, newValue) -> editorValueChanged());
         bodyType.addListener((observable, oldValue, newValue) -> editorValueChanged());
         requestBody.addListener((observable, oldValue, newValue) -> editorValueChanged());
+        responseFormattingEnabled.addListener((observable, oldValue, newValue) -> refreshResponseBody());
         requestLocation.addListener((observable, oldValue, newValue) -> {
             recomputeDirty();
             syncSelectedEnvironment();
@@ -564,7 +579,9 @@ public final class MainViewModel {
             responseStatus.set(Integer.toString(success.statusCode()));
             responseDuration.set(formatDuration(success.duration()));
             responseSize.set(formatSize(success.size()));
-            responseBody.set(success.bodyAsUtf8());
+            formattedResponseBody = responseBodyFormatter.prepare(success);
+            responseFormattingAvailable.set(formattedResponseBody.json());
+            refreshResponseBody();
             String formattedHeaders = success.headers().entrySet().stream()
                     .sorted(java.util.Map.Entry.comparingByKey(String.CASE_INSENSITIVE_ORDER))
                     .flatMap(entry -> entry.getValue().stream()
@@ -579,19 +596,29 @@ public final class MainViewModel {
             responseStatus.set("ERROR");
             responseDuration.set(formatDuration(failure.duration()));
             responseSize.set("—");
-            responseBody.set(failure.userMessage());
+            setPlainResponseBody(failure.userMessage());
             responseHeaders.set("");
             responseRaw.set(failure.category().name() + "\n\n" + failure.userMessage());
         }
     }
 
     private void clearResponse() {
-        responseBody.set("");
+        setPlainResponseBody("");
         responseHeaders.set("");
         responseRaw.set("");
         responseStatus.set("—");
         responseDuration.set("—");
         responseSize.set("—");
+    }
+
+    private void setPlainResponseBody(String body) {
+        formattedResponseBody = ResponseBodyFormatter.FormattedBody.plain(body);
+        responseFormattingAvailable.set(false);
+        refreshResponseBody();
+    }
+
+    private void refreshResponseBody() {
+        responseBody.set(formattedResponseBody.displayed(responseFormattingEnabled.get()));
     }
 
     private String formatDuration(Duration duration) {
@@ -642,6 +669,8 @@ public final class MainViewModel {
     public BooleanProperty dirtyProperty() { return dirty; }
     public BooleanProperty persistedProperty() { return persisted; }
     public BooleanProperty sidebarExpandedProperty() { return sidebarExpanded; }
+    public BooleanProperty responseFormattingEnabledProperty() { return responseFormattingEnabled; }
+    public BooleanProperty responseFormattingAvailableProperty() { return responseFormattingAvailable; }
     public StringProperty selectedRequestTabProperty() { return selectedRequestTab; }
     public StringProperty selectedResponseTabProperty() { return selectedResponseTab; }
     public StringProperty responseStatusProperty() { return responseStatus; }

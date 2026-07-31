@@ -52,20 +52,7 @@ public final class AppDirectories {
         return dataDirectory;
     }
 
-    public Path databasePath(String databaseFilename) {
-        return dataDirectory.resolve(requireDatabaseFilename(databaseFilename));
-    }
-
-    static String requireDatabaseFilename(String value) {
-        String filename = Objects.requireNonNull(value, "databaseFilename").strip();
-        Path path = Path.of(filename);
-        if (filename.isEmpty()
-                || path.isAbsolute()
-                || path.getNameCount() != 1
-                || filename.equals(".")
-                || filename.equals("..")) {
-            throw new IllegalArgumentException("database.filename must be a file name");
-        }
-        return filename;
+    public Path databasePath(DatabaseFilename databaseFilename) {
+        return dataDirectory.resolve(Objects.requireNonNull(databaseFilename, "databaseFilename").value());
     }
 }

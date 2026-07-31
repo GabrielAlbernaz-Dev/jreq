@@ -17,8 +17,8 @@ class ApplicationConfigurationTest {
 
         assertThat(configuration.applicationName()).isEqualTo("jREQ");
         assertThat(configuration.applicationVersion()).isEqualTo("0.1.0-SNAPSHOT");
-        assertThat(configuration.databaseFilename()).isEqualTo("jreq.db");
-        assertThat(configuration.httpTimeout()).isEqualTo(Duration.ofSeconds(30));
+        assertThat(configuration.databaseFilename().value()).isEqualTo("jreq.db");
+        assertThat(configuration.httpTimeout().value()).isEqualTo(Duration.ofSeconds(30));
         assertThat(configuration.windowTitle()).isEqualTo("jREQ 0.1.0-SNAPSHOT");
     }
 
@@ -35,6 +35,9 @@ class ApplicationConfigurationTest {
         Properties properties = validProperties();
         properties.setProperty("http.timeout.seconds", "0");
 
+        assertConfigurationFailure(properties);
+
+        properties.setProperty("http.timeout.seconds", "-1");
         assertConfigurationFailure(properties);
 
         properties.setProperty("http.timeout.seconds", "not-a-number");

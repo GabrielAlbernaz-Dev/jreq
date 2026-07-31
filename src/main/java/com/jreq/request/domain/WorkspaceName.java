@@ -1,18 +1,15 @@
 package com.jreq.request.domain;
 
+import com.jreq.shared.validation.Constraints;
+
 import java.util.Locale;
-import java.util.Objects;
 
 public final class WorkspaceName {
     private WorkspaceName() {
     }
 
     public static String require(String value) {
-        String normalized = Objects.requireNonNull(value, "name").strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException("Name is required.");
-        }
-        return normalized;
+        return Constraints.requiredText(value, "name", "Name is required.");
     }
 
     public static String comparisonKey(String value) {

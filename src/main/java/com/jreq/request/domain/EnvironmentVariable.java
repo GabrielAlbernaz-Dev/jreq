@@ -1,5 +1,7 @@
 package com.jreq.request.domain;
 
+import com.jreq.shared.validation.Constraints;
+
 import java.util.Objects;
 import java.util.UUID;
 
@@ -13,14 +15,11 @@ public record EnvironmentVariable(
 ) {
     public EnvironmentVariable {
         Objects.requireNonNull(id, "id");
-        key = Objects.requireNonNull(key, "key").strip();
+        key = Constraints.requiredText(
+                key, "key", "Variable key must not be blank");
         value = Objects.requireNonNull(value, "value");
-        if (key.isEmpty()) {
-            throw new IllegalArgumentException("Variable key must not be blank");
-        }
-        if (displayOrder < 0) {
-            throw new IllegalArgumentException("Variable display order must not be negative");
-        }
+        displayOrder = Constraints.nonNegative(
+                displayOrder, "Variable display order must not be negative");
     }
 
     public static EnvironmentVariable create(String key, String value, int displayOrder) {

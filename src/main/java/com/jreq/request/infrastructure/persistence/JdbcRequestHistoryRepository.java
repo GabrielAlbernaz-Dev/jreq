@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jreq.request.application.HttpResponseFailure;
 import com.jreq.request.application.HttpResponseResult;
 import com.jreq.request.application.HttpResponseSuccess;
+import com.jreq.request.application.HistoryLimit;
 import com.jreq.request.application.RequestHistoryRepository;
 import com.jreq.request.domain.HttpRequestDefinition;
 import com.jreq.request.domain.EnvironmentScope;
@@ -44,11 +45,9 @@ public final class JdbcRequestHistoryRepository implements RequestHistoryReposit
     }
 
     @Override
-    public void appendAndTrim(RequestHistoryEntry entry, int maximumEntries) {
+    public void appendAndTrim(RequestHistoryEntry entry, HistoryLimit maximumEntries) {
         Objects.requireNonNull(entry, "entry");
-        if (maximumEntries < 1) {
-            throw new IllegalArgumentException("maximumEntries must be positive");
-        }
+        Objects.requireNonNull(maximumEntries, "maximumEntries");
         String insert = """
                 INSERT INTO request_history (
                     id, name, method, url, status_code, duration_ms, response_size,
@@ -69,7 +68,7 @@ public final class JdbcRequestHistoryRepository implements RequestHistoryReposit
                                 LIMIT ?
                             )
                             """)) {
-                        trim.setInt(1, maximumEntries);
+                        trim.setInt(1, maximumEntries.value());
                         trim.executeUpdate();
                     }
                 }
@@ -82,10 +81,8 @@ public final class JdbcRequestHistoryRepository implements RequestHistoryReposit
     }
 
     @Override
-    public List<RequestHistoryEntry> findRecent(int limit) {
-        if (limit < 1) {
-            throw new IllegalArgumentException("limit must be positive");
-        }
+    public List<RequestHistoryEntry> findRecent(HistoryLimit limit) {
+        Objects.requireNonNull(limit, "limit");
         String sql = """
                 SELECT id, name, request_json, response_json, error_code, created_at,
                        request_collection_id, environment_id, environment_name, environment_collection_id
@@ -95,7 +92,7 @@ public final class JdbcRequestHistoryRepository implements RequestHistoryReposit
                 """;
         try (Connection connection = connectionFactory.openConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setInt(1, limit);
+            statement.setInt(1, limit.value());
             try (ResultSet resultSet = statement.executeQuery()) {
                 List<RequestHistoryEntry> entries = new ArrayList<>();
                 while (resultSet.next()) {

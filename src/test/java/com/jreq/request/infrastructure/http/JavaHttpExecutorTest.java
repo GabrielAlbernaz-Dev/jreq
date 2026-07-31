@@ -2,6 +2,7 @@ package com.jreq.request.infrastructure.http;
 
 import com.jreq.request.application.HttpResponseResult;
 import com.jreq.request.application.HttpResponseSuccess;
+import com.jreq.request.application.HttpTimeout;
 import com.jreq.request.domain.HttpMethod;
 import com.jreq.request.domain.HttpRequestDefinition;
 import com.jreq.request.domain.KeyValueEntry;
@@ -51,7 +52,7 @@ class JavaHttpExecutorTest {
 
     @Test
     void executesGetAsynchronouslyAndCapturesResponseData() throws Exception {
-        JavaHttpExecutor executor = new JavaHttpExecutor(Duration.ofSeconds(3));
+        JavaHttpExecutor executor = new JavaHttpExecutor(HttpTimeout.of(Duration.ofSeconds(3)));
         HttpRequestDefinition request = new HttpRequestDefinition(
                 UUID.randomUUID(),
                 "Local users",

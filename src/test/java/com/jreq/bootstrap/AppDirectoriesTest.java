@@ -44,7 +44,15 @@ class AppDirectoriesTest {
     void resolvesTheConfiguredDatabaseFilenameInsideTheDataDirectory() {
         AppDirectories directories = new AppDirectories(Path.of("/data/jreq"));
 
-        assertThat(directories.databasePath("workspace.sqlite"))
+        assertThat(directories.databasePath(DatabaseFilename.of("workspace.sqlite")))
                 .isEqualTo(Path.of("/data/jreq/workspace.sqlite"));
+    }
+
+    @Test
+    void rejectsDatabasePathsAtTheValueBoundary() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> DatabaseFilename.of("../workspace.sqlite"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("database.filename must be a file name");
     }
 }

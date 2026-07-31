@@ -15,6 +15,7 @@ import com.jreq.request.infrastructure.persistence.JdbcRequestHistoryRepository;
 import com.jreq.request.infrastructure.persistence.JdbcSavedRequestRepository;
 import com.jreq.request.presentation.MainController;
 import com.jreq.request.presentation.MainViewModel;
+import com.jreq.request.presentation.ResponseBodyFormatter;
 import com.jreq.shared.database.JdbcTransactionManager;
 import com.jreq.shared.database.SqliteConnectionFactory;
 import com.jreq.shared.concurrent.ExecutorServiceTaskExecutor;
@@ -70,7 +71,11 @@ public final class ApplicationContext implements AutoCloseable {
                 new JdbcEnvironmentRepository(connectionFactory, transactionManager);
 
         return new PersistenceComponents(
-                collectionRepository, savedRequestRepository, historyRepository, environmentRepository);
+                collectionRepository,
+                savedRequestRepository,
+                historyRepository,
+                environmentRepository,
+                objectMapper);
     }
 
     private static ApplicationContext composeApplication(
@@ -89,7 +94,12 @@ public final class ApplicationContext implements AutoCloseable {
                 databaseExecutor,
                 variableResolver);
         return new ApplicationContext(
-                configuration, new MainViewModel(workspaceService, variableResolver), databaseExecutor);
+                configuration,
+                new MainViewModel(
+                        workspaceService,
+                        variableResolver,
+                        new ResponseBodyFormatter(persistence.objectMapper())),
+                databaseExecutor);
     }
 
     public Object createController(Class<?> controllerType) {
@@ -112,7 +122,8 @@ public final class ApplicationContext implements AutoCloseable {
             CollectionRepository collections,
             SavedRequestRepository savedRequests,
             RequestHistoryRepository history,
-            EnvironmentRepository environments
+            EnvironmentRepository environments,
+            ObjectMapper objectMapper
     ) {
     }
 }

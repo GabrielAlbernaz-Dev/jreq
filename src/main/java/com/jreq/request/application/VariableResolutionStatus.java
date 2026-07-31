@@ -1,5 +1,7 @@
 package com.jreq.request.application;
 
+import com.jreq.shared.validation.Constraints;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -10,9 +12,8 @@ public record VariableResolutionStatus(
         Set<String> invalidReferences
 ) {
     public VariableResolutionStatus {
-        if (referenceCount < 0) {
-            throw new IllegalArgumentException("referenceCount must not be negative");
-        }
+        referenceCount = Constraints.nonNegative(
+                referenceCount, "referenceCount must not be negative");
         issues = List.copyOf(Objects.requireNonNull(issues, "issues"));
         invalidReferences = Set.copyOf(Objects.requireNonNull(invalidReferences, "invalidReferences"));
     }

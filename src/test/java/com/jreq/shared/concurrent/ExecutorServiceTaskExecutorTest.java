@@ -38,4 +38,11 @@ class ExecutorServiceTaskExecutorTest {
                     .hasCauseInstanceOf(IOException.class);
         }
     }
+
+    @Test
+    void rejectsBlankThreadNamesBeforeCreatingTheExecutor() {
+        assertThatThrownBy(() -> ExecutorServiceTaskExecutor.singleThread("  "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("threadName is required");
+    }
 }

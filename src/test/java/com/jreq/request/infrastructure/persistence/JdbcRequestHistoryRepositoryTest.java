@@ -3,6 +3,7 @@ package com.jreq.request.infrastructure.persistence;
 import com.jreq.bootstrap.DatabaseInitializer;
 import com.jreq.request.application.HttpResponseFailure;
 import com.jreq.request.application.HttpResponseSuccess;
+import com.jreq.request.application.HistoryLimit;
 import com.jreq.request.domain.HttpMethod;
 import com.jreq.request.domain.HttpRequestDefinition;
 import com.jreq.request.domain.RequestBody;
@@ -26,6 +27,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class JdbcRequestHistoryRepositoryTest {
+    private static final HistoryLimit HISTORY_LIMIT = HistoryLimit.of(100);
+
     @TempDir
     Path temporaryDirectory;
 
@@ -48,10 +51,10 @@ class JdbcRequestHistoryRepositoryTest {
         RequestHistoryEntry failure = entry(2, new HttpResponseFailure(
                 ErrorCategory.TIMEOUT, "The request timed out.", Duration.ofSeconds(30)));
 
-        repository.appendAndTrim(success, 100);
-        repository.appendAndTrim(failure, 100);
+        repository.appendAndTrim(success, HISTORY_LIMIT);
+        repository.appendAndTrim(failure, HISTORY_LIMIT);
 
-        assertThat(repository.findRecent(100))
+        assertThat(repository.findRecent(HISTORY_LIMIT))
                 .usingRecursiveFieldByFieldElementComparator()
                 .containsExactly(failure, success);
     }
@@ -60,10 +63,10 @@ class JdbcRequestHistoryRepositoryTest {
     void retainsOnlyTheConfiguredNumberOfNewestEntries() {
         for (int index = 0; index < 105; index++) {
             repository.appendAndTrim(entry(index, new HttpResponseFailure(
-                    ErrorCategory.TIMEOUT, "Timeout " + index, Duration.ofMillis(index))), 100);
+                    ErrorCategory.TIMEOUT, "Timeout " + index, Duration.ofMillis(index))), HISTORY_LIMIT);
         }
 
-        List<RequestHistoryEntry> recent = repository.findRecent(100);
+        List<RequestHistoryEntry> recent = repository.findRecent(HISTORY_LIMIT);
 
         assertThat(recent).hasSize(100);
         assertThat(recent.getFirst().name()).isEqualTo("Request 104");
@@ -76,15 +79,15 @@ class JdbcRequestHistoryRepositoryTest {
                 ErrorCategory.UNKNOWN, "Failure", Duration.ZERO));
         RequestHistoryEntry second = entry(2, new HttpResponseFailure(
                 ErrorCategory.UNKNOWN, "Failure", Duration.ZERO));
-        repository.appendAndTrim(first, 100);
-        repository.appendAndTrim(second, 100);
+        repository.appendAndTrim(first, HISTORY_LIMIT);
+        repository.appendAndTrim(second, HISTORY_LIMIT);
 
         repository.deleteById(second.id());
-        assertThat(repository.findRecent(100)).extracting(RequestHistoryEntry::id)
+        assertThat(repository.findRecent(HISTORY_LIMIT)).extracting(RequestHistoryEntry::id)
                 .containsExactly(first.id());
 
         repository.deleteAll();
-        assertThat(repository.findRecent(100)).isEmpty();
+        assertThat(repository.findRecent(HISTORY_LIMIT)).isEmpty();
     }
 
     private RequestHistoryEntry entry(int sequence, com.jreq.request.application.HttpResponseResult result) {

@@ -224,6 +224,11 @@ MainController ── MainViewModel
 - `request/presentation` coordinates JavaFX state, dialogs, and controller bindings.
 - `shared` contains focused concurrency, database, JSON, error, and reusable UI support.
 
+Configuration and policy values that would otherwise be revalidated across layers use immutable value objects. For
+example, `DatabaseFilename`, `HttpTimeout`, and `HistoryLimit` are validated once when created, so persistence and
+HTTP adapters receive values that are already safe to use. Primitive and collection invariants that remain local to
+a model use the shared `Constraints` API, while relational rules between fields stay with the record that owns them.
+
 Database tasks run on a dedicated single-thread executor. HTTP execution uses `HttpClient.sendAsync`, and presentation updates are marshalled back to the JavaFX Application Thread. Multi-step persistence operations can use `JdbcTransactionManager`, which commits on success and rolls back on failure.
 
 The composition root is [`ApplicationContext`](src/main/java/com/jreq/bootstrap/ApplicationContext.java); dependencies remain explicit and lifecycle-owned rather than globally mutable.

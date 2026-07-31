@@ -1,6 +1,7 @@
 package com.jreq.request.infrastructure.http;
 
 import com.jreq.request.application.HttpExecutor;
+import com.jreq.request.application.HttpTimeout;
 import com.jreq.request.application.HttpResponseFailure;
 import com.jreq.request.application.HttpResponseResult;
 import com.jreq.request.application.HttpResponseSuccess;
@@ -31,19 +32,16 @@ public final class JavaHttpExecutor implements HttpExecutor {
     private final HttpClient client;
     private final Duration requestTimeout;
 
-    public JavaHttpExecutor(Duration requestTimeout) {
+    public JavaHttpExecutor(HttpTimeout requestTimeout) {
         this(HttpClient.newBuilder()
-                .connectTimeout(requestTimeout)
+                .connectTimeout(Objects.requireNonNull(requestTimeout, "requestTimeout").value())
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build(), requestTimeout);
     }
 
-    public JavaHttpExecutor(HttpClient client, Duration requestTimeout) {
+    public JavaHttpExecutor(HttpClient client, HttpTimeout requestTimeout) {
         this.client = Objects.requireNonNull(client, "client");
-        this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout");
-        if (requestTimeout.isZero() || requestTimeout.isNegative()) {
-            throw new IllegalArgumentException("requestTimeout must be positive");
-        }
+        this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout").value();
     }
 
     @Override

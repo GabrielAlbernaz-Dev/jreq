@@ -19,6 +19,7 @@ import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
@@ -50,6 +51,7 @@ public final class MainController implements WorkspaceSidebar.Actions {
     @FXML private TabPane requestTabs;
     @FXML private TabPane responseTabs;
     @FXML private ResponseMetadataView responseMetadata;
+    @FXML private CheckBox responseFormattingToggle;
     @FXML private TextArea responseBody;
     @FXML private TextArea responseHeaders;
     @FXML private TextArea responseRaw;
@@ -173,6 +175,10 @@ public final class MainController implements WorkspaceSidebar.Actions {
         responseMetadata.statusProperty().bind(viewModel.responseStatusProperty());
         responseMetadata.durationProperty().bind(viewModel.responseDurationProperty());
         responseMetadata.sizeProperty().bind(viewModel.responseSizeProperty());
+        responseFormattingToggle.selectedProperty()
+                .bindBidirectional(viewModel.responseFormattingEnabledProperty());
+        responseFormattingToggle.disableProperty()
+                .bind(viewModel.responseFormattingAvailableProperty().not());
         responseBody.textProperty().bind(viewModel.responseBodyProperty());
         responseHeaders.textProperty().bind(viewModel.responseHeadersProperty());
         responseRaw.textProperty().bind(viewModel.responseRawProperty());
