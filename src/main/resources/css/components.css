@@ -636,7 +636,27 @@
     -fx-spacing: 10px;
 }
 
+.response-body-container {
+    -fx-background-color: -jreq-background;
+}
+
+.response-body-toolbar {
+    -fx-min-height: 36px;
+    -fx-padding: 4px 10px;
+    -fx-spacing: 8px;
+    -fx-background-color: -jreq-surface;
+    -fx-border-color: -jreq-subtle-border;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.response-body-toolbar-label {
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+}
+
 .response-format-selector {
+    -fx-min-height: 28px;
     -fx-text-fill: -jreq-text-secondary;
     -fx-font-size: 11px;
     -fx-font-weight: 600;
