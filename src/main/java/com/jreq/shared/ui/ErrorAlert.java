@@ -13,6 +13,7 @@ public final class ErrorAlert {
         alert.setTitle("jREQ — " + title);
         alert.setHeaderText(title);
         alert.setContentText(message);
+        alert.getDialogPane().getButtonTypes().setAll(DialogButtons.ok());
         alert.getDialogPane().getStylesheets().addAll(
                 resource("/css/theme.css"),
                 resource("/css/components.css")

@@ -3,6 +3,7 @@ package com.jreq.request.presentation;
 import com.jreq.request.application.EnvironmentConfiguration;
 import com.jreq.request.domain.RequestCollection;
 import com.jreq.request.domain.RequestLocation;
+import com.jreq.shared.ui.DialogButtons;
 import com.jreq.shared.ui.ResponsiveLayoutMode;
 import javafx.scene.Node;
 import javafx.beans.binding.Bindings;
@@ -56,7 +57,7 @@ final class WorkspaceDialogs {
         GridPane.setHgrow(destination, Priority.ALWAYS);
         dialog.getDialogPane().setContent(content);
         ButtonType save = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);
+        dialog.getDialogPane().getButtonTypes().addAll(save, DialogButtons.cancel());
         Node saveButton = dialog.getDialogPane().lookupButton(save);
         saveButton.disableProperty().bind(Bindings.createBooleanBinding(
                 () -> name.getText().isBlank(), name.textProperty()));
@@ -73,6 +74,7 @@ final class WorkspaceDialogs {
         dialog.setTitle("jREQ — " + title);
         dialog.setHeaderText(header);
         dialog.setContentText("Name");
+        dialog.getDialogPane().getButtonTypes().setAll(DialogButtons.ok(), DialogButtons.cancel());
         style(dialog.getDialogPane());
         return dialog.showAndWait().map(String::strip).filter(value -> !value.isEmpty());
     }
@@ -88,12 +90,14 @@ final class WorkspaceDialogs {
     }
 
     boolean confirm(String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, content, ButtonType.CANCEL, ButtonType.OK);
+        ButtonType ok = DialogButtons.ok();
+        Alert alert = new Alert(
+                Alert.AlertType.CONFIRMATION, content, DialogButtons.cancel(), ok);
         alert.initOwner(owner());
         alert.setTitle("jREQ — Confirm");
         alert.setHeaderText(header);
         style(alert.getDialogPane());
-        return alert.showAndWait().filter(ButtonType.OK::equals).isPresent();
+        return alert.showAndWait().filter(ok::equals).isPresent();
     }
 
     Optional<Boolean> confirmCollectionDeletion(RequestCollection collection) {
@@ -109,7 +113,7 @@ final class WorkspaceDialogs {
         explanation.getStyleClass().add("muted-label");
         dialog.getDialogPane().setContent(new VBox(10, explanation, deleteRequests));
         ButtonType delete = new ButtonType("Delete collection", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(delete, ButtonType.CANCEL);
+        dialog.getDialogPane().getButtonTypes().addAll(delete, DialogButtons.cancel());
         style(dialog.getDialogPane());
         return dialog.showAndWait().filter(delete::equals).map(ignored -> deleteRequests.isSelected());
     }
@@ -117,8 +121,9 @@ final class WorkspaceDialogs {
     UnsavedChoice confirmUnsavedChanges() {
         ButtonType save = new ButtonType("Save", ButtonBar.ButtonData.YES);
         ButtonType discard = new ButtonType("Discard", ButtonBar.ButtonData.NO);
+        ButtonType cancel = DialogButtons.cancel();
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
-                "Save your changes before leaving this request?", save, discard, ButtonType.CANCEL);
+                "Save your changes before leaving this request?", save, discard, cancel);
         alert.initOwner(owner());
         alert.setTitle("jREQ — Unsaved changes");
         alert.setHeaderText("Unsaved changes");

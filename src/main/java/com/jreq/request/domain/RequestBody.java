@@ -1,5 +1,7 @@
 package com.jreq.request.domain;
 
+import com.jreq.shared.validation.Constraints;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
@@ -8,8 +10,13 @@ public record RequestBody(RequestBodyType type, String content, String contentTy
         Objects.requireNonNull(type, "type");
         content = Objects.requireNonNull(content, "content");
         contentType = Objects.requireNonNull(contentType, "contentType");
-        if (type == RequestBodyType.NONE && (!content.isEmpty() || !contentType.isEmpty())) {
-            throw new IllegalArgumentException("A NONE body cannot contain data");
+        if (type == RequestBodyType.NONE) {
+            Constraints.requireArgument(
+                    content.isEmpty() && contentType.isEmpty(),
+                    "A NONE body cannot contain data");
+        } else {
+            contentType = Constraints.requiredText(
+                    contentType, "contentType", "A request body requires a content type");
         }
     }
 

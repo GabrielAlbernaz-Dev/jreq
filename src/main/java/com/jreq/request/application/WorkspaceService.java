@@ -20,7 +20,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public final class WorkspaceService {
-    public static final int HISTORY_LIMIT = 100;
+    public static final HistoryLimit HISTORY_LIMIT = HistoryLimit.of(100);
 
     private final CollectionRepository collectionRepository;
     private final SavedRequestRepository savedRequestRepository;

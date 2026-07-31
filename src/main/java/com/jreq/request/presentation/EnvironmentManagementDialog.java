@@ -6,6 +6,7 @@ import com.jreq.request.domain.EnvironmentVariable;
 import com.jreq.request.domain.RequestCollection;
 import com.jreq.request.domain.RequestEnvironment;
 import com.jreq.request.domain.RequestLocation;
+import com.jreq.shared.ui.DialogButtons;
 import com.jreq.shared.ui.ResponsiveLayoutMode;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
@@ -80,7 +81,7 @@ final class EnvironmentManagementDialog {
         dialog.getDialogPane().setContent(content());
 
         ButtonType save = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);
+        dialog.getDialogPane().getButtonTypes().addAll(save, DialogButtons.cancel());
         Node saveButton = dialog.getDialogPane().lookupButton(save);
         saveButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
             String error = validateDraft();
@@ -367,7 +368,7 @@ final class EnvironmentManagementDialog {
         VBox form = new VBox(8, new Label("Name"), name, new Label("Scope"), scope);
         dialog.getDialogPane().setContent(form);
         ButtonType create = new ButtonType("Create", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(create, ButtonType.CANCEL);
+        dialog.getDialogPane().getButtonTypes().addAll(create, DialogButtons.cancel());
         dialog.getDialogPane().lookupButton(create).disableProperty().bind(name.textProperty().isEmpty());
         dialog.setResultConverter(button -> button.equals(create)
                 ? new CreateEnvironment(name.getText().strip(), scope.getValue().scope)

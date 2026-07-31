@@ -155,9 +155,21 @@
                             <tabs>
                                 <Tab text="Body">
                                     <content>
-                                        <TextArea fx:id="responseBody" editable="false" wrapText="false"
-                                                  promptText="Send a request to view the response body"
-                                                  styleClass="code-area,response-body"/>
+                                        <VBox styleClass="response-body-container">
+                                            <children>
+                                                <HBox fx:id="responseBodyToolbar" alignment="CENTER_RIGHT"
+                                                      styleClass="response-body-toolbar">
+                                                    <children>
+                                                        <Label text="Format" styleClass="response-body-toolbar-label"/>
+                                                        <ComboBox fx:id="responseFormatSelector"
+                                                                  styleClass="response-format-selector"/>
+                                                    </children>
+                                                </HBox>
+                                                <TextArea fx:id="responseBody" editable="false" wrapText="false"
+                                                          promptText="Send a request to view the response body"
+                                                          styleClass="code-area,response-body" VBox.vgrow="ALWAYS"/>
+                                            </children>
+                                        </VBox>
                                     </content>
                                 </Tab>
                                 <Tab text="Headers">

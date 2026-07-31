@@ -42,10 +42,21 @@
 
 .layout-compact .response-heading {
     -fx-padding: 0 10px;
+    -fx-spacing: 8px;
 }
 
 .layout-compact .response-metadata {
     -fx-spacing: 6px;
+}
+
+.layout-compact .response-body-toolbar {
+    -fx-padding: 3px 8px;
+    -fx-spacing: 6px;
+}
+
+.layout-compact .response-format-selector,
+.layout-compact .response-body-toolbar-label {
+    -fx-font-size: 10px;
 }
 
 .layout-compact .metadata-name,

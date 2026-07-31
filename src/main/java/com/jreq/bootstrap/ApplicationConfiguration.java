@@ -1,19 +1,20 @@
 package com.jreq.bootstrap;
 
+import com.jreq.request.application.HttpTimeout;
 import com.jreq.shared.exception.ErrorCategory;
 import com.jreq.shared.exception.JReqException;
+import com.jreq.shared.validation.Constraints;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.Duration;
 import java.util.Objects;
 import java.util.Properties;
 
 public record ApplicationConfiguration(
         String applicationName,
         String applicationVersion,
-        String databaseFilename,
-        Duration httpTimeout
+        DatabaseFilename databaseFilename,
+        HttpTimeout httpTimeout
 ) {
     private static final String RESOURCE = "/application.properties";
     private static final String APPLICATION_NAME = "application.name";
@@ -22,13 +23,12 @@ public record ApplicationConfiguration(
     private static final String HTTP_TIMEOUT_SECONDS = "http.timeout.seconds";
 
     public ApplicationConfiguration {
-        applicationName = requireText(applicationName, APPLICATION_NAME);
-        applicationVersion = requireText(applicationVersion, APPLICATION_VERSION);
-        databaseFilename = AppDirectories.requireDatabaseFilename(databaseFilename);
+        applicationName = Constraints.requiredText(
+                applicationName, "applicationName", APPLICATION_NAME + " is required");
+        applicationVersion = Constraints.requiredText(
+                applicationVersion, "applicationVersion", APPLICATION_VERSION + " is required");
+        Objects.requireNonNull(databaseFilename, "databaseFilename");
         Objects.requireNonNull(httpTimeout, "httpTimeout");
-        if (httpTimeout.isZero() || httpTimeout.isNegative()) {
-            throw new IllegalArgumentException(HTTP_TIMEOUT_SECONDS + " must be positive");
-        }
     }
 
     public static ApplicationConfiguration load() {
@@ -45,13 +45,13 @@ public record ApplicationConfiguration(
     }
 
     static ApplicationConfiguration from(Properties properties) {
-        Objects.requireNonNull(properties, "properties");
         try {
+            RequiredProperties required = new RequiredProperties(properties);
             return new ApplicationConfiguration(
-                    requiredProperty(properties, APPLICATION_NAME),
-                    requiredProperty(properties, APPLICATION_VERSION),
-                    requiredProperty(properties, DATABASE_FILENAME),
-                    Duration.ofSeconds(positiveLong(properties, HTTP_TIMEOUT_SECONDS)));
+                    required.text(APPLICATION_NAME),
+                    required.text(APPLICATION_VERSION),
+                    DatabaseFilename.of(required.text(DATABASE_FILENAME)),
+                    HttpTimeout.ofSeconds(required.wholeNumber(HTTP_TIMEOUT_SECONDS)));
         } catch (IllegalArgumentException exception) {
             throw failure("Application configuration is invalid", exception);
         }
@@ -59,30 +59,6 @@ public record ApplicationConfiguration(
 
     public String windowTitle() {
         return applicationName + " " + applicationVersion;
-    }
-
-    private static String requiredProperty(Properties properties, String key) {
-        return requireText(properties.getProperty(key), key);
-    }
-
-    private static String requireText(String value, String key) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(key + " is required");
-        }
-        return value.strip();
-    }
-
-    private static long positiveLong(Properties properties, String key) {
-        String value = requiredProperty(properties, key);
-        try {
-            long parsed = Long.parseLong(value);
-            if (parsed < 1) {
-                throw new IllegalArgumentException(key + " must be positive");
-            }
-            return parsed;
-        } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException(key + " must be a whole number", exception);
-        }
     }
 
     private static JReqException failure(String message, Exception cause) {

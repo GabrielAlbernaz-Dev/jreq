@@ -6,9 +6,9 @@ import java.util.List;
 import java.util.UUID;
 
 public interface RequestHistoryRepository {
-    void appendAndTrim(RequestHistoryEntry entry, int maximumEntries);
+    void appendAndTrim(RequestHistoryEntry entry, HistoryLimit maximumEntries);
 
-    List<RequestHistoryEntry> findRecent(int limit);
+    List<RequestHistoryEntry> findRecent(HistoryLimit limit);
 
     void deleteById(UUID id);
 

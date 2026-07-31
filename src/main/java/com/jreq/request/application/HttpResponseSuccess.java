@@ -1,5 +1,7 @@
 package com.jreq.request.application;
 
+import com.jreq.shared.validation.Constraints;
+
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
@@ -16,16 +18,17 @@ public record HttpResponseSuccess(
         long size
 ) implements HttpResponseResult {
     public HttpResponseSuccess {
+        statusCode = Constraints.inRange(
+                statusCode, 100, 599, "statusCode must be between 100 and 599");
         headers = Objects.requireNonNull(headers, "headers").entrySet().stream()
                 .collect(Collectors.toUnmodifiableMap(
                         Map.Entry::getKey,
                         entry -> List.copyOf(entry.getValue())
                 ));
         body = Arrays.copyOf(Objects.requireNonNull(body, "body"), body.length);
-        Objects.requireNonNull(duration, "duration");
-        if (size < 0) {
-            throw new IllegalArgumentException("size must not be negative");
-        }
+        duration = Constraints.nonNegative(
+                duration, "duration", "duration must not be negative");
+        size = Constraints.nonNegative(size, "size must not be negative");
     }
 
     @Override

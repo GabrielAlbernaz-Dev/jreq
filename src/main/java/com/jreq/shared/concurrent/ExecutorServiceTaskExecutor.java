@@ -1,5 +1,7 @@
 package com.jreq.shared.concurrent;
 
+import com.jreq.shared.validation.Constraints;
+
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -14,10 +16,8 @@ public final class ExecutorServiceTaskExecutor implements AsyncTaskExecutor, Aut
     }
 
     public static ExecutorServiceTaskExecutor singleThread(String threadName) {
-        String validThreadName = Objects.requireNonNull(threadName, "threadName").strip();
-        if (validThreadName.isEmpty()) {
-            throw new IllegalArgumentException("threadName is required");
-        }
+        String validThreadName = Constraints.requiredText(
+                threadName, "threadName", "threadName is required");
         return new ExecutorServiceTaskExecutor(Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, validThreadName);
             thread.setDaemon(true);

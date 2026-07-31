@@ -1,14 +1,16 @@
 package com.jreq.request.application;
 
+import com.jreq.shared.validation.Constraints;
+
 import java.util.Objects;
 
 public record ExecutionReport(HttpResponseResult result, boolean historySaved, String warning) {
     public ExecutionReport {
         Objects.requireNonNull(result, "result");
         warning = Objects.requireNonNull(warning, "warning");
-        if (historySaved && !warning.isEmpty()) {
-            throw new IllegalArgumentException("A saved history result cannot have a warning");
-        }
+        Constraints.requireArgument(
+                !historySaved || warning.isEmpty(),
+                "A saved history result cannot have a warning");
     }
 
     public static ExecutionReport saved(HttpResponseResult result) {

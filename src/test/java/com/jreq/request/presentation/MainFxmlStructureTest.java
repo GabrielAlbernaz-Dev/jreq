@@ -2,6 +2,9 @@ package com.jreq.request.presentation;
 
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.InputStream;
@@ -30,9 +33,40 @@ class MainFxmlStructureTest {
                     "fx:id=\"headersEditor\"",
                     "fx:id=\"bodyTypeSelector\"",
                     "fx:id=\"variableFeedbackLabel\"",
+                    "fx:id=\"responseBodyToolbar\"",
+                    "fx:id=\"responseFormatSelector\"",
                     "fx:id=\"responseHeaders\"",
                     "fx:id=\"responseRaw\"");
             assertThat(source).contains("COLLECTIONS", "HISTORY", "Response");
+
+            Element formatSelector = findByFxId(document, "responseFormatSelector");
+            assertThat(formatSelector)
+                    .as("the response format selector must remain scoped to the Body tab")
+                    .matches(element -> hasAncestorTab(element, "Body"));
         }
+    }
+
+    private Element findByFxId(Document document, String fxId) {
+        NodeList elements = document.getElementsByTagName("*");
+        for (int index = 0; index < elements.getLength(); index++) {
+            Element element = (Element) elements.item(index);
+            if (fxId.equals(element.getAttribute("fx:id"))) {
+                return element;
+            }
+        }
+        throw new AssertionError("Missing FXML element with fx:id=" + fxId);
+    }
+
+    private boolean hasAncestorTab(Element element, String tabText) {
+        Node current = element.getParentNode();
+        while (current != null) {
+            if (current instanceof Element ancestor
+                    && "Tab".equals(ancestor.getTagName())
+                    && tabText.equals(ancestor.getAttribute("text"))) {
+                return true;
+            }
+            current = current.getParentNode();
+        }
+        return false;
     }
 }
