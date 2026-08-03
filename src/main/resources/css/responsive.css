@@ -73,6 +73,14 @@
     -fx-padding: 0 8px;
 }
 
+.layout-compact .authentication-editor {
+    -fx-padding: 10px 8px 12px 8px;
+}
+
+.layout-compact .authentication-method-selector {
+    -fx-pref-width: 144px;
+}
+
 .layout-normal .sidebar {
     -fx-pref-width: 224px;
 }

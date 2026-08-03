@@ -619,6 +619,40 @@
     -fx-min-width: 24px;
 }
 
+.authentication-scroll,
+.authentication-scroll > .viewport {
+    -fx-background-color: -jreq-background;
+}
+
+.authentication-editor {
+    -fx-padding: 12px 16px 16px 16px;
+    -fx-background-color: -jreq-background;
+}
+
+.authentication-method-selector {
+    -fx-pref-width: 180px;
+}
+
+.authentication-fields {
+    -fx-padding: 4px 0 2px 0;
+}
+
+.authentication-text-field,
+.masked-authentication-field .text-field,
+.masked-authentication-field .password-field {
+    -fx-min-height: 38px;
+    -fx-pref-height: 38px;
+    -fx-max-height: 38px;
+}
+
+.masked-authentication-field .quiet-action {
+    -fx-min-width: 52px;
+}
+
+.authentication-storage-warning {
+    -fx-text-fill: -jreq-warning;
+}
+
 .response-heading {
     -fx-min-height: 48px;
     -fx-padding: 0 16px;

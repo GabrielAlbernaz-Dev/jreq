@@ -29,6 +29,7 @@ public final class WorkspaceService {
     private final HttpExecutor httpExecutor;
     private final AsyncTaskExecutor databaseExecutor;
     private final RequestVariableResolver variableResolver;
+    private final RequestAuthenticationApplicator authenticationApplicator;
 
     public WorkspaceService(
             CollectionRepository collectionRepository,
@@ -37,7 +38,8 @@ public final class WorkspaceService {
             EnvironmentRepository environmentRepository,
             HttpExecutor httpExecutor,
             AsyncTaskExecutor databaseExecutor,
-            RequestVariableResolver variableResolver
+            RequestVariableResolver variableResolver,
+            RequestAuthenticationApplicator authenticationApplicator
     ) {
         this.collectionRepository = Objects.requireNonNull(collectionRepository, "collectionRepository");
         this.savedRequestRepository = Objects.requireNonNull(savedRequestRepository, "savedRequestRepository");
@@ -46,6 +48,8 @@ public final class WorkspaceService {
         this.httpExecutor = Objects.requireNonNull(httpExecutor, "httpExecutor");
         this.databaseExecutor = Objects.requireNonNull(databaseExecutor, "databaseExecutor");
         this.variableResolver = Objects.requireNonNull(variableResolver, "variableResolver");
+        this.authenticationApplicator =
+                Objects.requireNonNull(authenticationApplicator, "authenticationApplicator");
     }
 
     public CompletableFuture<WorkspaceSnapshot> loadWorkspace() {
@@ -157,12 +161,13 @@ public final class WorkspaceService {
         Optional<RequestEnvironment> selected = selectedEnvironment(configuration, context);
         HttpRequestDefinition resolved = variableResolver.resolve(
                 request, configuration.globals(), selected);
+        HttpRequestDefinition authenticated = authenticationApplicator.apply(resolved);
         HistoryEnvironmentReference historyEnvironment = selected
                 .<HistoryEnvironmentReference>map(environment -> HistoryEnvironmentReference.selected(
                         environment.id(), environment.name(), environment.scope()))
                 .orElseGet(HistoryEnvironmentReference::none);
         return new PreparedExecution(
-                resolved,
+                authenticated,
                 new HistoryExecutionContext(context.location(), historyEnvironment));
     }
 

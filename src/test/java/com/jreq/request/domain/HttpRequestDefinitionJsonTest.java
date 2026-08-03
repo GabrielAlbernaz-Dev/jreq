@@ -21,13 +21,27 @@ class HttpRequestDefinitionJsonTest {
                 "https://api.example.com/users",
                 List.of(new KeyValueEntry(UUID.randomUUID(), "preview", "true", true)),
                 List.of(new KeyValueEntry(UUID.randomUUID(), "Accept", "application/json", true)),
-                RequestBody.json("{\"name\":\"Ada\"}")
+                RequestBody.json("{\"name\":\"Ada\"}"),
+                new RequestAuthentication.Basic("{{username}}", "{{password}}")
         );
 
         String json = objectMapper.writeValueAsString(original);
         HttpRequestDefinition restored = objectMapper.readValue(json, HttpRequestDefinition.class);
 
         assertThat(restored).isEqualTo(original);
-        assertThat(json).contains("Create user", "application/json");
+        assertThat(json).contains("Create user", "application/json", "\"type\":\"basic\"");
+    }
+
+    @Test
+    void defaultsLegacyDefinitionsWithoutAuthenticationToNone() throws Exception {
+        HttpRequestDefinition current = new HttpRequestDefinition(
+                UUID.randomUUID(), "Legacy", HttpMethod.GET, "https://example.com",
+                List.of(), List.of(), RequestBody.none());
+        String legacyJson = objectMapper.writeValueAsString(current)
+                .replace(",\"authentication\":{\"type\":\"none\"}", "");
+
+        HttpRequestDefinition restored = objectMapper.readValue(legacyJson, HttpRequestDefinition.class);
+
+        assertThat(restored.authentication()).isEqualTo(RequestAuthentication.none());
     }
 }

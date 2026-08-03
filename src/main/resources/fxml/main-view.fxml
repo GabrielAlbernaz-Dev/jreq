@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import com.jreq.shared.ui.components.EmptyStateView?>
 <?import com.jreq.shared.ui.components.KeyValueEditor?>
 <?import com.jreq.shared.ui.components.RequestBarControl?>
 <?import com.jreq.shared.ui.components.ResponseMetadataView?>
+<?import com.jreq.request.presentation.AuthenticationEditor?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ComboBox?>
@@ -136,7 +136,11 @@
                                     </content>
                                 </Tab>
                                 <Tab text="Auth">
-                                    <content><EmptyStateView fx:id="authEmptyState"/></content>
+                                    <content>
+                                        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="authentication-scroll">
+                                            <content><AuthenticationEditor fx:id="authenticationEditor"/></content>
+                                        </ScrollPane>
+                                    </content>
                                 </Tab>
                             </tabs>
                         </TabPane>

@@ -3,6 +3,9 @@ package com.jreq.request.presentation;
 import com.jreq.bootstrap.DatabaseInitializer;
 import com.jreq.request.application.HttpResponseFailure;
 import com.jreq.request.application.HttpResponseSuccess;
+import com.jreq.request.application.BasicAuthenticationStrategy;
+import com.jreq.request.application.JwtBearerAuthenticationStrategy;
+import com.jreq.request.application.RequestAuthenticationApplicator;
 import com.jreq.request.application.RequestVariableResolver;
 import com.jreq.request.application.WorkspaceService;
 import com.jreq.request.domain.HttpMethod;
@@ -12,6 +15,7 @@ import com.jreq.request.domain.RequestBody;
 import com.jreq.request.domain.RequestBodyType;
 import com.jreq.request.domain.RequestHistoryEntry;
 import com.jreq.request.domain.RequestLocation;
+import com.jreq.request.domain.RequestAuthentication;
 import com.jreq.request.domain.SavedRequest;
 import com.jreq.request.infrastructure.persistence.JdbcCollectionRepository;
 import com.jreq.request.infrastructure.persistence.JdbcEnvironmentRepository;
@@ -64,7 +68,10 @@ class MainViewModelTest {
                 request -> CompletableFuture.completedFuture(new HttpResponseFailure(
                         ErrorCategory.UNKNOWN, "Failure", Duration.ZERO)),
                 databaseExecutor,
-                new RequestVariableResolver());
+                new RequestVariableResolver(),
+                new RequestAuthenticationApplicator(List.of(
+                        new BasicAuthenticationStrategy(),
+                        new JwtBearerAuthenticationStrategy())));
         viewModel = new MainViewModel(workspaceService);
     }
 
@@ -109,13 +116,15 @@ class MainViewModelTest {
     void opensSavedRequestsAsCleanAndHistorySnapshotsAsUnsaved() {
         HttpRequestDefinition definition = new HttpRequestDefinition(
                 UUID.randomUUID(), "Health", HttpMethod.GET, "https://example.com/health",
-                List.of(), List.of(), RequestBody.none());
+                List.of(), List.of(), RequestBody.none(),
+                new RequestAuthentication.JwtBearer("{{token}}"));
         Instant now = Instant.now();
         SavedRequest saved = new SavedRequest(definition, RequestLocation.root(), now, now);
 
         viewModel.openSavedRequest(saved);
         assertThat(viewModel.persistedProperty().get()).isTrue();
         assertThat(viewModel.dirtyProperty().get()).isFalse();
+        assertThat(viewModel.authentication()).isEqualTo(definition.authentication());
 
         RequestHistoryEntry history = new RequestHistoryEntry(
                 UUID.randomUUID(), definition.name(), definition,
@@ -128,6 +137,22 @@ class MainViewModelTest {
         assertThat(viewModel.responseStatusProperty().get()).isEqualTo("ERROR");
         assertThat(viewModel.responseBodyProperty().get()).isEqualTo("The request timed out.");
         assertThat(viewModel.definition().id()).isNotEqualTo(definition.id());
+        assertThat(viewModel.authentication()).isEqualTo(definition.authentication());
+    }
+
+    @Test
+    void includesAuthenticationInDirtyStateAndResetsItForANewRequest() {
+        RequestAuthentication.Basic basic = new RequestAuthentication.Basic("Ada", "{{password}}");
+
+        viewModel.updateAuthentication(basic);
+
+        assertThat(viewModel.dirtyProperty().get()).isTrue();
+        assertThat(viewModel.definition().authentication()).isEqualTo(basic);
+
+        viewModel.newRequest();
+
+        assertThat(viewModel.authentication()).isEqualTo(RequestAuthentication.none());
+        assertThat(viewModel.dirtyProperty().get()).isFalse();
     }
 
     @Test

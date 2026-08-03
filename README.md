@@ -59,6 +59,7 @@ Use jREQ to:
 - Root-level requests and collections with rename, move, duplicate, and delete actions.
 - Global and collection-scoped environments using `{{variable}}` placeholders.
 - Nested variable references, missing-variable feedback, and masked secret values.
+- Per-request Basic Auth and JWT Bearer authentication.
 - Request history for completed responses and failures.
 - Automatic or manual formatting for JSON, XML, and HTML responses.
 - Unsaved-change protection while navigating the workspace.
@@ -114,6 +115,15 @@ Create global or collection-scoped environments and reference their values with 
 
 Variables can be used in URLs, parameter values, header values, and JSON or text bodies. jREQ highlights resolved references and reports missing or cyclic references before sending a request.
 
+### Authenticate requests
+
+Open the **Auth** tab to select one of the supported per-request methods:
+
+- **Basic Auth** accepts a username and password and generates a standard Basic `Authorization` header.
+- **JWT Bearer** accepts an existing JWT and sends it as `Authorization: Bearer <token>`.
+
+Authentication fields support `{{variable}}` references. Passwords and tokens are masked by default in the editor. When an Auth method is active, its generated value takes precedence over any manual `Authorization` entry in the **Headers** tab; the manual entry remains part of the saved request and becomes active again if Auth is changed to **None**.
+
 ### Revisit history
 
 Completed request attempts are added to local history, including transport and response failures. Open an entry to inspect its recorded request and response, then save it if it should become part of the workspace.
@@ -131,11 +141,11 @@ Completed request attempts are added to local history, including transport and r
 
 jREQ does not require an account and does not use an application backend. Workspace data stays on your machine, and HTTP requests are sent directly from the desktop application to the destination you enter.
 
-Values marked as secret are masked in the interface, but they remain part of your local workspace data. Treat that data as sensitive and avoid sharing it publicly.
+Values marked as secret, Basic passwords, and JWT tokens are masked in the interface, but they remain unencrypted in your local workspace data. Treat that data as sensitive and avoid sharing it publicly.
 
 ## Current limitations
 
-Authentication helpers, import and export, nested collections, and packaged installers are not available yet. Authentication controls currently visible in the interface are placeholders; add authorization headers manually when required.
+JWT generation and signing, OAuth, API-key helpers, authentication inheritance, import and export, nested collections, and packaged installers are not available yet.
 
 ## Build and test
 

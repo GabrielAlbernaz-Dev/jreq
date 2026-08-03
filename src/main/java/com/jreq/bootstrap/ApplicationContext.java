@@ -2,9 +2,12 @@ package com.jreq.bootstrap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jreq.request.application.CollectionRepository;
+import com.jreq.request.application.BasicAuthenticationStrategy;
 import com.jreq.request.application.EnvironmentRepository;
 import com.jreq.request.application.HttpExecutor;
 import com.jreq.request.application.RequestHistoryRepository;
+import com.jreq.request.application.JwtBearerAuthenticationStrategy;
+import com.jreq.request.application.RequestAuthenticationApplicator;
 import com.jreq.request.application.SavedRequestRepository;
 import com.jreq.request.application.WorkspaceService;
 import com.jreq.request.application.RequestVariableResolver;
@@ -20,6 +23,8 @@ import com.jreq.shared.database.JdbcTransactionManager;
 import com.jreq.shared.database.SqliteConnectionFactory;
 import com.jreq.shared.concurrent.ExecutorServiceTaskExecutor;
 import com.jreq.shared.json.JReqObjectMapper;
+
+import java.util.List;
 
 public final class ApplicationContext implements AutoCloseable {
     private static final String DATABASE_THREAD_NAME = "jreq-database";
@@ -94,6 +99,9 @@ public final class ApplicationContext implements AutoCloseable {
     ) {
         HttpExecutor httpExecutor = new JavaHttpExecutor(configuration.httpTimeout());
         RequestVariableResolver variableResolver = new RequestVariableResolver();
+        RequestAuthenticationApplicator authenticationApplicator = new RequestAuthenticationApplicator(List.of(
+                new BasicAuthenticationStrategy(),
+                new JwtBearerAuthenticationStrategy()));
         WorkspaceService workspaceService = new WorkspaceService(
                 persistence.collections(),
                 persistence.savedRequests(),
@@ -101,7 +109,8 @@ public final class ApplicationContext implements AutoCloseable {
                 persistence.environments(),
                 httpExecutor,
                 databaseExecutor,
-                variableResolver);
+                variableResolver,
+                authenticationApplicator);
         return new ApplicationContext(
                 configuration,
                 new MainViewModel(

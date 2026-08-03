@@ -6,6 +6,7 @@ import com.jreq.request.domain.HttpMethod;
 import com.jreq.request.domain.HttpRequestDefinition;
 import com.jreq.request.domain.KeyValueEntry;
 import com.jreq.request.domain.RequestBody;
+import com.jreq.request.domain.RequestAuthentication;
 import com.jreq.request.domain.RequestEnvironment;
 import org.junit.jupiter.api.Test;
 
@@ -109,6 +110,32 @@ class RequestVariableResolverTest {
                 .isInstanceOf(VariableResolutionException.class)
                 .hasMessageContaining("missing {{disabled}}")
                 .hasMessageNotContaining("missing {{empty}}");
+    }
+
+    @Test
+    void resolvesAuthenticationFieldsAndIncludesThemInInspection() {
+        HttpRequestDefinition basicTemplate = new HttpRequestDefinition(
+                UUID.randomUUID(), "Basic", HttpMethod.GET, "https://example.com",
+                List.of(), List.of(), RequestBody.none(),
+                new RequestAuthentication.Basic("{{username}}", "{{password}}"));
+        List<EnvironmentVariable> variables = List.of(
+                variable("username", "Ada"), variable("password", "secret"));
+
+        HttpRequestDefinition resolved = resolver.resolve(basicTemplate, variables, Optional.empty());
+
+        assertThat(resolved.authentication())
+                .isEqualTo(new RequestAuthentication.Basic("Ada", "secret"));
+        assertThat(resolver.inspect(basicTemplate, variables, Optional.empty()).referenceCount())
+                .isEqualTo(2);
+
+        HttpRequestDefinition missingToken = new HttpRequestDefinition(
+                UUID.randomUUID(), "JWT", HttpMethod.GET, "https://example.com",
+                List.of(), List.of(), RequestBody.none(),
+                new RequestAuthentication.JwtBearer("{{jwt}}"));
+        assertThatThrownBy(() -> resolver.resolve(missingToken, variables, Optional.empty()))
+                .isInstanceOf(VariableResolutionException.class)
+                .hasMessageContaining("missing {{jwt}}")
+                .hasMessageNotContaining("secret");
     }
 
     private EnvironmentVariable variable(String key, String value) {

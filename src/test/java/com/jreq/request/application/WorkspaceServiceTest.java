@@ -11,6 +11,8 @@ import com.jreq.request.domain.RequestBody;
 import com.jreq.request.domain.RequestEnvironment;
 import com.jreq.request.domain.RequestExecutionContext;
 import com.jreq.request.domain.RequestLocation;
+import com.jreq.request.domain.RequestAuthentication;
+import com.jreq.request.domain.KeyValueEntry;
 import com.jreq.request.infrastructure.persistence.JdbcCollectionRepository;
 import com.jreq.request.infrastructure.persistence.JdbcEnvironmentRepository;
 import com.jreq.request.infrastructure.persistence.JdbcRequestHistoryRepository;
@@ -68,7 +70,10 @@ class WorkspaceServiceTest {
                 new JdbcEnvironmentRepository(factory, transactionManager),
                 httpExecutor,
                 databaseExecutor,
-                new RequestVariableResolver());
+                new RequestVariableResolver(),
+                new RequestAuthenticationApplicator(List.of(
+                        new BasicAuthenticationStrategy(),
+                        new JwtBearerAuthenticationStrategy())));
     }
 
     @AfterEach
@@ -179,6 +184,48 @@ class WorkspaceServiceTest {
                 new RequestExecutionContext(RequestLocation.root(), EnvironmentSelection.none()))
                 .get(2, TimeUnit.SECONDS)))
                 .hasCauseInstanceOf(VariableResolutionException.class);
+        assertThat(executionCount).hasValue(0);
+        assertThat(service.loadWorkspace().get(2, TimeUnit.SECONDS).history()).isEmpty();
+    }
+
+    @Test
+    void resolvesAndAppliesAuthenticationWhileRecordingOnlyTheTemplate() throws Exception {
+        service.saveEnvironmentConfiguration(new EnvironmentConfiguration(
+                List.of(new EnvironmentVariable(
+                        UUID.randomUUID(), "jwt", "header.payload.signature", true, true, 0)),
+                List.of())).get(2, TimeUnit.SECONDS);
+        KeyValueEntry manualAuthorization = new KeyValueEntry(
+                UUID.randomUUID(), "Authorization", "Bearer manual", true);
+        HttpRequestDefinition template = new HttpRequestDefinition(
+                UUID.randomUUID(), "JWT", HttpMethod.GET, "https://example.com/users",
+                List.of(), List.of(manualAuthorization), RequestBody.none(),
+                new RequestAuthentication.JwtBearer("{{jwt}}"));
+
+        service.executeAndRecord(template).get(2, TimeUnit.SECONDS);
+
+        assertThat(executedRequest.get().headers()).singleElement()
+                .extracting(KeyValueEntry::value)
+                .isEqualTo("Bearer header.payload.signature");
+        HttpRequestDefinition recorded = service.loadWorkspace().get(2, TimeUnit.SECONDS)
+                .history().getFirst().request();
+        assertThat(recorded.authentication())
+                .isEqualTo(new RequestAuthentication.JwtBearer("{{jwt}}"));
+        assertThat(recorded.headers()).containsExactly(manualAuthorization);
+    }
+
+    @Test
+    void blocksInvalidAuthenticationBeforeHttpAndHistory() throws Exception {
+        HttpRequestDefinition invalid = new HttpRequestDefinition(
+                UUID.randomUUID(), "Invalid Basic", HttpMethod.GET, "https://example.com/users",
+                List.of(), List.of(), RequestBody.none(),
+                new RequestAuthentication.Basic("", "sensitive-password"));
+
+        Throwable failure = org.assertj.core.api.Assertions.catchThrowable(() ->
+                service.executeAndRecord(invalid).get(2, TimeUnit.SECONDS));
+
+        assertThat(failure)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageNotContaining("sensitive-password");
         assertThat(executionCount).hasValue(0);
         assertThat(service.loadWorkspace().get(2, TimeUnit.SECONDS).history()).isEmpty();
     }

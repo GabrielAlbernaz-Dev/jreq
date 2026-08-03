@@ -31,6 +31,7 @@ class MainFxmlStructureTest {
                     "fx:id=\"historyList\"",
                     "fx:id=\"paramsEditor\"",
                     "fx:id=\"headersEditor\"",
+                    "fx:id=\"authenticationEditor\"",
                     "fx:id=\"bodyTypeSelector\"",
                     "fx:id=\"variableFeedbackLabel\"",
                     "fx:id=\"responseBodyToolbar\"",
@@ -43,6 +44,8 @@ class MainFxmlStructureTest {
             assertThat(formatSelector)
                     .as("the response format selector must remain scoped to the Body tab")
                     .matches(element -> hasAncestorTab(element, "Body"));
+            assertThat(findByFxId(document, "authenticationEditor"))
+                    .matches(element -> hasAncestorTab(element, "Auth"));
         }
     }
 

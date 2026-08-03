@@ -4,6 +4,7 @@ import com.jreq.request.domain.EnvironmentVariable;
 import com.jreq.request.domain.HttpRequestDefinition;
 import com.jreq.request.domain.KeyValueEntry;
 import com.jreq.request.domain.RequestBody;
+import com.jreq.request.domain.RequestAuthentication;
 import com.jreq.request.domain.RequestEnvironment;
 
 import java.util.ArrayList;
@@ -61,8 +62,22 @@ public final class RequestVariableResolver {
                 ? new RequestBody(template.body().type(), resolution.text(template.body().content()),
                         template.body().contentType())
                 : RequestBody.none();
+        RequestAuthentication authentication = resolveAuthentication(template.authentication(), resolution);
         return new HttpRequestDefinition(
-                template.id(), template.name(), template.method(), url, query, headers, body);
+                template.id(), template.name(), template.method(), url, query, headers, body, authentication);
+    }
+
+    private RequestAuthentication resolveAuthentication(
+            RequestAuthentication authentication,
+            Resolution resolution
+    ) {
+        return switch (authentication) {
+            case RequestAuthentication.None none -> none;
+            case RequestAuthentication.Basic basic -> new RequestAuthentication.Basic(
+                    resolution.text(basic.username()), resolution.text(basic.password()));
+            case RequestAuthentication.JwtBearer jwt ->
+                    new RequestAuthentication.JwtBearer(resolution.text(jwt.token()));
+        };
     }
 
     private Map<String, String> enabledValues(List<EnvironmentVariable> variables) {

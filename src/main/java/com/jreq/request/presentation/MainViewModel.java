@@ -22,6 +22,7 @@ import com.jreq.request.domain.RequestHistoryEntry;
 import com.jreq.request.domain.RequestEnvironment;
 import com.jreq.request.domain.RequestExecutionContext;
 import com.jreq.request.domain.RequestLocation;
+import com.jreq.request.domain.RequestAuthentication;
 import com.jreq.request.domain.SavedRequest;
 import com.jreq.request.domain.WorkspaceName;
 import com.jreq.shared.concurrent.AsyncTaskExecutor;
@@ -103,6 +104,7 @@ public final class MainViewModel {
     private UUID requestId = UUID.randomUUID();
     private List<KeyValueEntry> queryParameters = List.of(KeyValueEntry.empty());
     private List<KeyValueEntry> headers = List.of(KeyValueEntry.empty());
+    private RequestAuthentication authentication = RequestAuthentication.none();
     private Optional<EditorSnapshot> baseline = Optional.empty();
     private boolean changingEditor;
     private boolean changingResponseFormattingMode;
@@ -206,6 +208,7 @@ public final class MainViewModel {
         url.set("");
         queryParameters = List.of(KeyValueEntry.empty());
         headers = List.of(KeyValueEntry.empty());
+        authentication = RequestAuthentication.none();
         bodyType.set(RequestBodyType.NONE);
         requestBody.set("");
         requestLocation.set(RequestLocation.root());
@@ -232,7 +235,8 @@ public final class MainViewModel {
         RequestLocation restoredLocation = existingLocation(entry.executionContext().location());
         HttpRequestDefinition detached = new HttpRequestDefinition(
                 UUID.randomUUID(), entry.request().name(), entry.request().method(), entry.request().url(),
-                entry.request().queryParameters(), entry.request().headers(), entry.request().body());
+                entry.request().queryParameters(), entry.request().headers(), entry.request().body(),
+                entry.request().authentication());
         loadDefinition(detached, restoredLocation, false);
         baseline = Optional.empty();
         dirty.set(true);
@@ -401,12 +405,22 @@ public final class MainViewModel {
         refreshVariableFeedback();
     }
 
+    public void updateAuthentication(RequestAuthentication updatedAuthentication) {
+        authentication = Objects.requireNonNull(updatedAuthentication, "updatedAuthentication");
+        recomputeDirty();
+        refreshVariableFeedback();
+    }
+
     public List<KeyValueEntry> queryParameters() {
         return queryParameters;
     }
 
     public List<KeyValueEntry> headers() {
         return headers;
+    }
+
+    public RequestAuthentication authentication() {
+        return authentication;
     }
 
     public HttpRequestDefinition definition() {
@@ -417,7 +431,8 @@ public final class MainViewModel {
                 url.get(),
                 queryParameters,
                 headers,
-                createBody()
+                createBody(),
+                authentication
         );
     }
 
@@ -465,6 +480,7 @@ public final class MainViewModel {
         url.set(definition.url());
         queryParameters = definition.queryParameters();
         headers = definition.headers();
+        authentication = definition.authentication();
         bodyType.set(definition.body().type());
         requestBody.set(definition.body().content());
         requestLocation.set(location);
@@ -485,7 +501,8 @@ public final class MainViewModel {
         return new HttpRequestDefinition(
                 id,
                 name,
-                source.method(), source.url(), source.queryParameters(), source.headers(), source.body());
+                source.method(), source.url(), source.queryParameters(), source.headers(), source.body(),
+                source.authentication());
     }
 
     private void applyWorkspace(WorkspaceSnapshot snapshot) {
