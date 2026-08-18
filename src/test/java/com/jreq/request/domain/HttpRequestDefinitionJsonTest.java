@@ -22,14 +22,16 @@ class HttpRequestDefinitionJsonTest {
                 List.of(new KeyValueEntry(UUID.randomUUID(), "preview", "true", true)),
                 List.of(new KeyValueEntry(UUID.randomUUID(), "Accept", "application/json", true)),
                 RequestBody.json("{\"name\":\"Ada\"}"),
-                new RequestAuthentication.Basic("{{username}}", "{{password}}")
+                new RequestAuthentication.Basic("{{username}}", "{{password}}"),
+                CookieJarMode.DISABLED
         );
 
         String json = objectMapper.writeValueAsString(original);
         HttpRequestDefinition restored = objectMapper.readValue(json, HttpRequestDefinition.class);
 
         assertThat(restored).isEqualTo(original);
-        assertThat(json).contains("Create user", "application/json", "\"type\":\"basic\"");
+        assertThat(json).contains(
+                "Create user", "application/json", "\"type\":\"basic\"", "\"cookieJarMode\":\"DISABLED\"");
     }
 
     @Test
@@ -43,5 +45,6 @@ class HttpRequestDefinitionJsonTest {
         HttpRequestDefinition restored = objectMapper.readValue(legacyJson, HttpRequestDefinition.class);
 
         assertThat(restored.authentication()).isEqualTo(RequestAuthentication.none());
+        assertThat(restored.cookieJarMode()).isEqualTo(CookieJarMode.ENABLED);
     }
 }

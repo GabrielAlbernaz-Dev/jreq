@@ -16,11 +16,14 @@ import com.jreq.request.domain.RequestBodyType;
 import com.jreq.request.domain.RequestHistoryEntry;
 import com.jreq.request.domain.RequestLocation;
 import com.jreq.request.domain.RequestAuthentication;
+import com.jreq.request.domain.CookieJarMode;
 import com.jreq.request.domain.SavedRequest;
 import com.jreq.request.infrastructure.persistence.JdbcCollectionRepository;
 import com.jreq.request.infrastructure.persistence.JdbcEnvironmentRepository;
+import com.jreq.request.infrastructure.persistence.JdbcCookieRepository;
 import com.jreq.request.infrastructure.persistence.JdbcRequestHistoryRepository;
 import com.jreq.request.infrastructure.persistence.JdbcSavedRequestRepository;
+import com.jreq.request.infrastructure.http.ManagedCookieStore;
 import com.jreq.shared.concurrent.AsyncTaskExecutor;
 import com.jreq.shared.concurrent.ExecutorServiceTaskExecutor;
 import com.jreq.shared.database.JdbcTransactionManager;
@@ -65,6 +68,8 @@ class MainViewModelTest {
                 new JdbcSavedRequestRepository(factory, mapper),
                 new JdbcRequestHistoryRepository(factory, transactionManager, mapper),
                 new JdbcEnvironmentRepository(factory, transactionManager),
+                new JdbcCookieRepository(factory, transactionManager),
+                new ManagedCookieStore(),
                 request -> CompletableFuture.completedFuture(new HttpResponseFailure(
                         ErrorCategory.UNKNOWN, "Failure", Duration.ZERO)),
                 databaseExecutor,
@@ -152,6 +157,21 @@ class MainViewModelTest {
         viewModel.newRequest();
 
         assertThat(viewModel.authentication()).isEqualTo(RequestAuthentication.none());
+        assertThat(viewModel.dirtyProperty().get()).isFalse();
+    }
+
+    @Test
+    void includesCookieJarModeInDirtyStateAndDefaultsNewRequestsToEnabled() {
+        assertThat(viewModel.definition().cookieJarMode()).isEqualTo(CookieJarMode.ENABLED);
+
+        viewModel.cookieJarEnabledProperty().set(false);
+
+        assertThat(viewModel.dirtyProperty().get()).isTrue();
+        assertThat(viewModel.definition().cookieJarMode()).isEqualTo(CookieJarMode.DISABLED);
+
+        viewModel.newRequest();
+
+        assertThat(viewModel.cookieJarEnabledProperty().get()).isTrue();
         assertThat(viewModel.dirtyProperty().get()).isFalse();
     }
 

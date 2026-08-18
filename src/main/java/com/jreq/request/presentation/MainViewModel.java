@@ -1,5 +1,6 @@
 package com.jreq.request.presentation;
 
+import com.jreq.request.application.CookieJarEdit;
 import com.jreq.request.application.ExecutionReport;
 import com.jreq.request.application.EnvironmentActivation;
 import com.jreq.request.application.EnvironmentConfiguration;
@@ -11,6 +12,7 @@ import com.jreq.request.application.VariableResolutionStatus;
 import com.jreq.request.application.WorkspaceService;
 import com.jreq.request.application.WorkspaceSnapshot;
 import com.jreq.request.domain.HttpMethod;
+import com.jreq.request.domain.CookieJarMode;
 import com.jreq.request.domain.EnvironmentSelection;
 import com.jreq.request.domain.HistoryEnvironmentReference;
 import com.jreq.request.domain.HttpRequestDefinition;
@@ -25,13 +27,16 @@ import com.jreq.request.domain.RequestLocation;
 import com.jreq.request.domain.RequestAuthentication;
 import com.jreq.request.domain.SavedRequest;
 import com.jreq.request.domain.WorkspaceName;
+import com.jreq.request.domain.StoredCookie;
 import com.jreq.shared.concurrent.AsyncTaskExecutor;
 import com.jreq.shared.json.JReqObjectMapper;
 import com.jreq.shared.ui.ResponsiveLayoutMode;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -39,10 +44,12 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
 import java.time.Duration;
+import java.net.URI;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -66,6 +73,8 @@ public final class MainViewModel {
     private final BooleanProperty loading = new SimpleBooleanProperty(false);
     private final BooleanProperty dirty = new SimpleBooleanProperty(false);
     private final BooleanProperty persisted = new SimpleBooleanProperty(false);
+    private final BooleanProperty cookieJarEnabled = new SimpleBooleanProperty(true);
+    private final IntegerProperty applicableCookieCount = new SimpleIntegerProperty(0);
     private final BooleanProperty sidebarExpanded = new SimpleBooleanProperty(true);
     private final BooleanProperty responseFormattingAvailable = new SimpleBooleanProperty(false);
     private final BooleanProperty responseFormattingInProgress = new SimpleBooleanProperty(false);
@@ -100,6 +109,7 @@ public final class MainViewModel {
     private final ObservableList<SavedRequest> savedRequests = FXCollections.observableArrayList();
     private final ObservableList<RequestHistoryEntry> history = FXCollections.observableArrayList();
     private final ObservableList<RequestEnvironment> environments = FXCollections.observableArrayList();
+    private final ObservableList<StoredCookie> cookies = FXCollections.observableArrayList();
 
     private UUID requestId = UUID.randomUUID();
     private List<KeyValueEntry> queryParameters = List.of(KeyValueEntry.empty());
@@ -147,6 +157,7 @@ public final class MainViewModel {
         url.addListener((observable, oldValue, newValue) -> editorValueChanged());
         bodyType.addListener((observable, oldValue, newValue) -> editorValueChanged());
         requestBody.addListener((observable, oldValue, newValue) -> editorValueChanged());
+        cookieJarEnabled.addListener((observable, oldValue, newValue) -> editorValueChanged());
         responseFormattingMode.addListener((observable, oldValue, newValue) -> {
             if (!changingResponseFormattingMode && newValue != null) {
                 requestResponseFormatting();
@@ -194,9 +205,9 @@ public final class MainViewModel {
                     }
                     applyWorkspace(completion.snapshot());
                     renderResult(completion.report().result());
-                    statusMessage.set(completion.report().historySaved()
+                    statusMessage.set(completion.report().userNotice().isEmpty()
                             ? "Request completed and added to history"
-                            : completion.report().warning());
+                            : completion.report().userNotice());
                 }));
     }
 
@@ -209,6 +220,7 @@ public final class MainViewModel {
         queryParameters = List.of(KeyValueEntry.empty());
         headers = List.of(KeyValueEntry.empty());
         authentication = RequestAuthentication.none();
+        cookieJarEnabled.set(true);
         bodyType.set(RequestBodyType.NONE);
         requestBody.set("");
         requestLocation.set(RequestLocation.root());
@@ -236,7 +248,7 @@ public final class MainViewModel {
         HttpRequestDefinition detached = new HttpRequestDefinition(
                 UUID.randomUUID(), entry.request().name(), entry.request().method(), entry.request().url(),
                 entry.request().queryParameters(), entry.request().headers(), entry.request().body(),
-                entry.request().authentication());
+                entry.request().authentication(), entry.request().cookieJarMode());
         loadDefinition(detached, restoredLocation, false);
         baseline = Optional.empty();
         dirty.set(true);
@@ -393,6 +405,19 @@ public final class MainViewModel {
         });
     }
 
+    public CompletableFuture<Void> saveCookies(List<StoredCookie> updatedCookies) {
+        return saveCookies(CookieJarEdit.of(List.copyOf(updatedCookies), Set.of(), true));
+    }
+
+    public CompletableFuture<Void> saveCookies(CookieJarEdit edit) {
+        return applyFuture(
+                workspaceService.saveCookies(edit).thenCompose(ignored -> workspaceService.loadWorkspace()),
+                snapshot -> {
+                    applyWorkspace(snapshot);
+                    statusMessage.set("Cookies saved");
+                });
+    }
+
     public void updateQueryParameters(List<KeyValueEntry> entries) {
         queryParameters = List.copyOf(entries);
         recomputeDirty();
@@ -432,7 +457,8 @@ public final class MainViewModel {
                 queryParameters,
                 headers,
                 createBody(),
-                authentication
+                authentication,
+                cookieJarEnabled.get() ? CookieJarMode.ENABLED : CookieJarMode.DISABLED
         );
     }
 
@@ -481,6 +507,7 @@ public final class MainViewModel {
         queryParameters = definition.queryParameters();
         headers = definition.headers();
         authentication = definition.authentication();
+        cookieJarEnabled.set(definition.cookieJarMode() == CookieJarMode.ENABLED);
         bodyType.set(definition.body().type());
         requestBody.set(definition.body().content());
         requestLocation.set(location);
@@ -502,7 +529,7 @@ public final class MainViewModel {
                 id,
                 name,
                 source.method(), source.url(), source.queryParameters(), source.headers(), source.body(),
-                source.authentication());
+                source.authentication(), source.cookieJarMode());
     }
 
     private void applyWorkspace(WorkspaceSnapshot snapshot) {
@@ -512,6 +539,7 @@ public final class MainViewModel {
         environmentConfiguration = snapshot.environmentConfiguration();
         environmentActivations = snapshot.environmentActivations();
         environments.setAll(environmentConfiguration.environments());
+        cookies.setAll(snapshot.cookies());
         syncSelectedEnvironment();
         refreshVariableFeedback();
     }
@@ -528,6 +556,7 @@ public final class MainViewModel {
         VariableResolutionStatus status = variableResolver.inspect(
                 definition(), environmentConfiguration.globals(), selectedEnvironment());
         variableResolutionStatus.set(status);
+        refreshApplicableCookieCount();
         if (!status.hasReferences()) {
             variableFeedback.set("");
             variableFeedbackState.set(VariableFeedbackState.NONE);
@@ -541,6 +570,20 @@ public final class MainViewModel {
         }
         variableFeedback.set("⚠ " + String.join(" · ", status.issues()));
         variableFeedbackState.set(VariableFeedbackState.INVALID);
+    }
+
+    private void refreshApplicableCookieCount() {
+        if (!cookieJarEnabled.get()) {
+            applicableCookieCount.set(0);
+            return;
+        }
+        try {
+            HttpRequestDefinition resolved = variableResolver.resolve(
+                    definition(), environmentConfiguration.globals(), selectedEnvironment());
+            applicableCookieCount.set(workspaceService.cookiesFor(URI.create(resolved.url())).size());
+        } catch (RuntimeException invalidOrUnresolvedUrl) {
+            applicableCookieCount.set(0);
+        }
     }
 
     private Optional<RequestEnvironment> selectedEnvironment() {
@@ -807,6 +850,8 @@ public final class MainViewModel {
     public BooleanProperty loadingProperty() { return loading; }
     public BooleanProperty dirtyProperty() { return dirty; }
     public BooleanProperty persistedProperty() { return persisted; }
+    public BooleanProperty cookieJarEnabledProperty() { return cookieJarEnabled; }
+    public IntegerProperty applicableCookieCountProperty() { return applicableCookieCount; }
     public BooleanProperty sidebarExpandedProperty() { return sidebarExpanded; }
     public BooleanProperty responseFormattingAvailableProperty() { return responseFormattingAvailable; }
     public BooleanProperty responseFormattingInProgressProperty() { return responseFormattingInProgress; }
@@ -841,6 +886,7 @@ public final class MainViewModel {
     public ObservableList<SavedRequest> savedRequests() { return savedRequests; }
     public ObservableList<RequestHistoryEntry> history() { return history; }
     public ObservableList<RequestEnvironment> environments() { return environments; }
+    public ObservableList<StoredCookie> cookies() { return cookies; }
     public EnvironmentConfiguration environmentConfiguration() { return environmentConfiguration; }
 
     private record EditorSnapshot(HttpRequestDefinition definition, RequestLocation location) {

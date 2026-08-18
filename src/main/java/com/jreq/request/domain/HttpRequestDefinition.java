@@ -15,7 +15,8 @@ public record HttpRequestDefinition(
         List<KeyValueEntry> queryParameters,
         List<KeyValueEntry> headers,
         RequestBody body,
-        RequestAuthentication authentication
+        RequestAuthentication authentication,
+        CookieJarMode cookieJarMode
 ) {
     public HttpRequestDefinition {
         Objects.requireNonNull(id, "id");
@@ -26,6 +27,20 @@ public record HttpRequestDefinition(
         headers = List.copyOf(Objects.requireNonNull(headers, "headers"));
         Objects.requireNonNull(body, "body");
         Objects.requireNonNull(authentication, "authentication");
+        Objects.requireNonNull(cookieJarMode, "cookieJarMode");
+    }
+
+    public HttpRequestDefinition(
+            UUID id,
+            String name,
+            HttpMethod method,
+            String url,
+            List<KeyValueEntry> queryParameters,
+            List<KeyValueEntry> headers,
+            RequestBody body,
+            RequestAuthentication authentication
+    ) {
+        this(id, name, method, url, queryParameters, headers, body, authentication, CookieJarMode.ENABLED);
     }
 
     public HttpRequestDefinition(
@@ -37,7 +52,8 @@ public record HttpRequestDefinition(
             List<KeyValueEntry> headers,
             RequestBody body
     ) {
-        this(id, name, method, url, queryParameters, headers, body, RequestAuthentication.none());
+        this(id, name, method, url, queryParameters, headers, body,
+                RequestAuthentication.none(), CookieJarMode.ENABLED);
     }
 
     @JsonCreator
@@ -49,12 +65,17 @@ public record HttpRequestDefinition(
             @JsonProperty("queryParameters") List<KeyValueEntry> queryParameters,
             @JsonProperty("headers") List<KeyValueEntry> headers,
             @JsonProperty("body") RequestBody body,
-            @JsonProperty("authentication") RequestAuthentication authentication
+            @JsonProperty("authentication") RequestAuthentication authentication,
+            @JsonProperty("cookieJarMode") CookieJarMode cookieJarMode
     ) {
         RequestAuthentication compatibleAuthentication = authentication == null
                 ? RequestAuthentication.none()
                 : authentication;
+        CookieJarMode compatibleCookieJarMode = cookieJarMode == null
+                ? CookieJarMode.ENABLED
+                : cookieJarMode;
         return new HttpRequestDefinition(
-                id, name, method, url, queryParameters, headers, body, compatibleAuthentication);
+                id, name, method, url, queryParameters, headers, body,
+                compatibleAuthentication, compatibleCookieJarMode);
     }
 }

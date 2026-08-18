@@ -39,6 +39,7 @@ import javafx.util.StringConverter;
 
 import java.util.List;
 import java.util.Objects;
+import java.net.URI;
 
 public final class MainController implements WorkspaceSidebar.Actions {
     private static final PseudoClass FORMAT_ERROR = PseudoClass.getPseudoClass("format-error");
@@ -110,6 +111,11 @@ public final class MainController implements WorkspaceSidebar.Actions {
         requestBar.setOnSend(viewModel::sendRequest);
         requestBar.setOnSave(this::handleSave);
         requestBar.setOnSaveAs(this::handleSaveAs);
+        requestBar.setOnManageCookies(this::handleManageCookies);
+        requestBar.cookieJarEnabledProperty().bindBidirectional(viewModel.cookieJarEnabledProperty());
+        requestBar.setCookieCount(viewModel.applicableCookieCountProperty().get());
+        viewModel.applicableCookieCountProperty().addListener(
+                (observable, oldValue, count) -> requestBar.setCookieCount(count.intValue()));
         viewModel.loadingProperty().addListener((observable, oldValue, loading) ->
                 requestBar.setLoading(loading));
 
@@ -181,6 +187,23 @@ public final class MainController implements WorkspaceSidebar.Actions {
         responseHeaders.textProperty().bind(viewModel.responseHeadersProperty());
         responseRaw.textProperty().bind(viewModel.responseRawProperty());
         statusMessage.textProperty().bind(viewModel.statusMessageProperty());
+    }
+
+    private void handleManageCookies() {
+        URI currentUri;
+        try {
+            currentUri = URI.create(viewModel.urlProperty().get());
+        } catch (IllegalArgumentException invalidUrl) {
+            currentUri = URI.create("jreq:/");
+        }
+        new CookieManagementDialog(
+                owner(), viewModel.cookies(), currentUri, viewModel.responsiveModeProperty().get())
+                .show()
+                .ifPresent(edit -> {
+                    if (!edit.isEmpty()) {
+                        viewModel.saveCookies(edit);
+                    }
+                });
     }
 
     private void configureResponseFormatSelector() {

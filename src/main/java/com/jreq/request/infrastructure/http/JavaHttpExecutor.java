@@ -7,12 +7,15 @@ import com.jreq.request.application.HttpResponseResult;
 import com.jreq.request.application.HttpResponseSuccess;
 import com.jreq.request.domain.HttpRequestDefinition;
 import com.jreq.request.domain.KeyValueEntry;
+import com.jreq.request.domain.CookieJarMode;
 import com.jreq.shared.exception.ErrorCategory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLException;
 import java.net.ConnectException;
+import java.net.CookieManager;
+import java.net.CookieStore;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.UnknownHostException;
@@ -25,28 +28,42 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class JavaHttpExecutor implements HttpExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(JavaHttpExecutor.class);
 
-    private final HttpClient client;
+    private final HttpClient cookieClient;
+    private final HttpClient statelessClient;
     private final Duration requestTimeout;
+    private final boolean ownsClients;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     public JavaHttpExecutor(HttpTimeout requestTimeout) {
-        this(HttpClient.newBuilder()
-                .connectTimeout(Objects.requireNonNull(requestTimeout, "requestTimeout").value())
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build(), requestTimeout);
+        this(requestTimeout, new ManagedCookieStore());
+    }
+
+    public JavaHttpExecutor(HttpTimeout requestTimeout, CookieStore cookieStore) {
+        this(createClients(requestTimeout, cookieStore), requestTimeout, true);
     }
 
     public JavaHttpExecutor(HttpClient client, HttpTimeout requestTimeout) {
-        this.client = Objects.requireNonNull(client, "client");
+        this(new Clients(Objects.requireNonNull(client, "client"), client), requestTimeout, false);
+    }
+
+    private JavaHttpExecutor(Clients clients, HttpTimeout requestTimeout, boolean ownsClients) {
+        this.cookieClient = clients.withCookies();
+        this.statelessClient = clients.stateless();
         this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout").value();
+        this.ownsClients = ownsClients;
     }
 
     @Override
     public CompletableFuture<HttpResponseResult> execute(HttpRequestDefinition definition) {
         Objects.requireNonNull(definition, "definition");
+        if (closed.get()) {
+            throw new IllegalStateException("HTTP executor is closed");
+        }
         long startedAt = System.nanoTime();
 
         final HttpRequest request;
@@ -62,6 +79,9 @@ public final class JavaHttpExecutor implements HttpExecutor {
             ));
         }
 
+        HttpClient client = definition.cookieJarMode() == CookieJarMode.ENABLED
+                ? cookieClient
+                : statelessClient;
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
                 .<HttpResponseResult>handle((response, error) -> {
                     Duration duration = elapsedSince(startedAt);
@@ -82,6 +102,17 @@ public final class JavaHttpExecutor implements HttpExecutor {
                             body.length
                     );
                 });
+    }
+
+    @Override
+    public void close() {
+        if (!closed.compareAndSet(false, true) || !ownsClients) {
+            return;
+        }
+        cookieClient.shutdownNow();
+        if (statelessClient != cookieClient) {
+            statelessClient.shutdownNow();
+        }
     }
 
     private HttpRequest createRequest(HttpRequestDefinition definition, URI uri) {
@@ -159,5 +190,28 @@ public final class JavaHttpExecutor implements HttpExecutor {
             case TLS_ERROR -> "A secure connection could not be established.";
             default -> "The request could not be completed.";
         };
+    }
+
+    private static Clients createClients(HttpTimeout timeout, CookieStore cookieStore) {
+        Duration duration = Objects.requireNonNull(timeout, "timeout").value();
+        Objects.requireNonNull(cookieStore, "cookieStore");
+        if (!(cookieStore instanceof ManagedCookieStore managedStore)) {
+            throw new IllegalArgumentException("cookieStore must be a ManagedCookieStore");
+        }
+        CookieManager manager = new CookieManager(managedStore, new JReqCookiePolicy());
+        HttpClient withCookies = baseClient(duration)
+                .cookieHandler(new MergingCookieHandler(manager, managedStore))
+                .build();
+        HttpClient stateless = baseClient(duration).build();
+        return new Clients(withCookies, stateless);
+    }
+
+    private static HttpClient.Builder baseClient(Duration timeout) {
+        return HttpClient.newBuilder()
+                .connectTimeout(timeout)
+                .followRedirects(HttpClient.Redirect.NORMAL);
+    }
+
+    private record Clients(HttpClient withCookies, HttpClient stateless) {
     }
 }

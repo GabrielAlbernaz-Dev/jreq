@@ -14,4 +14,8 @@ public final class DialogButtons {
     public static ButtonType ok() {
         return new ButtonType("OK", ButtonBar.ButtonData.OK_DONE);
     }
+
+    public static ButtonType save() {
+        return new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+    }
 }

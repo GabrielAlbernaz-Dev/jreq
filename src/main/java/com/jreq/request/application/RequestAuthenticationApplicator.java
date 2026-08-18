@@ -54,6 +54,7 @@ public final class RequestAuthenticationApplicator {
                 definition.queryParameters(),
                 headers,
                 definition.body(),
-                authentication);
+                authentication,
+                definition.cookieJarMode());
     }
 }

@@ -40,6 +40,13 @@
     -fx-padding: 0 12px;
 }
 
+.layout-compact .cookies-menu {
+    -fx-min-width: 74px;
+    -fx-pref-width: 74px;
+    -fx-max-width: 74px;
+    -fx-font-size: 10px;
+}
+
 .layout-compact .response-heading {
     -fx-padding: 0 10px;
     -fx-spacing: 8px;

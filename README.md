@@ -60,6 +60,7 @@ Use jREQ to:
 - Global and collection-scoped environments using `{{variable}}` placeholders.
 - Nested variable references, missing-variable feedback, and masked secret values.
 - Per-request Basic Auth and JWT Bearer authentication.
+- A local cookie jar with automatic `Set-Cookie` capture, domain/path matching, manual management, and per-request disable controls.
 - Request history for completed responses and failures.
 - Automatic or manual formatting for JSON, XML, and HTML responses.
 - Unsaved-change protection while navigating the workspace.
@@ -124,6 +125,12 @@ Open the **Auth** tab to select one of the supported per-request methods:
 
 Authentication fields support `{{variable}}` references. Passwords and tokens are masked by default in the editor. When an Auth method is active, its generated value takes precedence over any manual `Authorization` entry in the **Headers** tab; the manual entry remains part of the saved request and becomes active again if Auth is changed to **None**.
 
+### Work with cookies
+
+The cookie jar is enabled by default. jREQ captures valid `Set-Cookie` response fields (including cookies that only set `Expires`) and automatically sends matching cookies on later requests according to domain, host-only, path, expiration, and Secure rules. Open **Cookies** beside the request URL to inspect, add, edit, remove, or **Paste cookies…** as text (`Set-Cookie` lines or a request `Cookie` header). Pasted text is sanitized against unsafe characters, size limits, and host-scoped domain rules before it enters the jar. Use the button menu to disable the jar for an individual request.
+
+An explicit `Cookie` entry in the **Headers** tab overrides an automatic cookie with the same name while leaving other matching jar cookies available. Persistent cookies survive application restarts; session cookies remain in memory only and are cleared when jREQ closes. Saving the cookie manager merges your edits with any cookies captured while the dialog was open.
+
 ### Revisit history
 
 Completed request attempts are added to local history, including transport and response failures. Open an entry to inspect its recorded request and response, then save it if it should become part of the workspace.
@@ -141,11 +148,11 @@ Completed request attempts are added to local history, including transport and r
 
 jREQ does not require an account and does not use an application backend. Workspace data stays on your machine, and HTTP requests are sent directly from the desktop application to the destination you enter.
 
-Values marked as secret, Basic passwords, and JWT tokens are masked in the interface, but they remain unencrypted in your local workspace data. Treat that data as sensitive and avoid sharing it publicly.
+Values marked as secret, Basic passwords, JWT tokens, persistent cookie values, and recorded response headers are masked where appropriate in editors, but they remain unencrypted in your local workspace data. Session cookies are not written to the cookie table, although a response containing `Set-Cookie` can still be present in request history. Treat the workspace database as sensitive and avoid sharing it publicly.
 
 ## Current limitations
 
-JWT generation and signing, OAuth, API-key helpers, authentication inheritance, import and export, nested collections, and packaged installers are not available yet.
+JWT generation and signing, OAuth, API-key helpers, authentication inheritance, browser cookie synchronization, cookie file export, nested collections, and packaged installers are not available yet.
 
 ## Build and test
 

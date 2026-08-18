@@ -35,7 +35,7 @@ class DatabaseInitializerTest {
                     .contains(
                             "app_setting", "collection", "saved_request", "request_history",
                             "environment", "environment_variable", "global_variable",
-                            "environment_selection", "flyway_schema_history");
+                            "environment_selection", "stored_cookie", "flyway_schema_history");
             assertThat(pragmaValue(statement, "foreign_keys")).isEqualTo("1");
             assertThat(pragmaValue(statement, "journal_mode")).isEqualToIgnoringCase("wal");
             assertThat(pragmaValue(statement, "busy_timeout")).isEqualTo("5000");

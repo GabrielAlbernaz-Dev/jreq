@@ -167,7 +167,7 @@ public final class JdbcCollectionRepository implements CollectionRepository {
                     HttpRequestDefinition renamed = new HttpRequestDefinition(
                             definition.id(), uniqueName, definition.method(), definition.url(),
                             definition.queryParameters(), definition.headers(), definition.body(),
-                            definition.authentication());
+                            definition.authentication(), definition.cookieJarMode());
                     moves.add(new RequestMove(
                             resultSet.getString("id"), uniqueName, objectMapper.writeValueAsString(renamed)));
                 }

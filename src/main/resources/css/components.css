@@ -422,6 +422,7 @@
 .request-bar .combo-box,
 .request-bar .text-field,
 .request-bar .variable-highlighting-field,
+.request-bar .menu-button,
 .request-bar .split-menu-button,
 .send-button {
     -fx-min-height: 40px;
@@ -765,4 +766,43 @@
 .connection-indicator {
     -fx-text-fill: -jreq-success;
     -fx-font-size: 9px;
+}
+
+.cookies-menu {
+    -fx-min-width: 94px;
+    -fx-background-color: -jreq-elevated;
+    -fx-border-color: -jreq-border;
+}
+
+.cookies-menu:hover,
+.cookies-menu:showing {
+    -fx-border-color: -jreq-red;
+}
+
+.cookie-dialog .dialog-pane,
+.cookie-dialog {
+    -fx-background-color: -jreq-surface;
+}
+
+.cookie-split {
+    -fx-background-color: -jreq-background;
+}
+
+.cookie-navigation,
+.cookie-editor {
+    -fx-padding: 12px;
+    -fx-spacing: 8px;
+    -fx-background-color: -jreq-surface;
+}
+
+.cookie-navigation .list-view,
+.cookie-editor .table-view {
+    -fx-background-color: -jreq-background;
+    -fx-border-color: -jreq-subtle-border;
+}
+
+.cookie-editor .table-row-cell:selected,
+.cookie-navigation .list-cell:selected {
+    -fx-background-color: -jreq-red-soft;
+    -fx-text-fill: -jreq-text;
 }

@@ -64,7 +64,8 @@ public final class RequestVariableResolver {
                 : RequestBody.none();
         RequestAuthentication authentication = resolveAuthentication(template.authentication(), resolution);
         return new HttpRequestDefinition(
-                template.id(), template.name(), template.method(), url, query, headers, body, authentication);
+                template.id(), template.name(), template.method(), url, query, headers, body,
+                authentication, template.cookieJarMode());
     }
 
     private RequestAuthentication resolveAuthentication(

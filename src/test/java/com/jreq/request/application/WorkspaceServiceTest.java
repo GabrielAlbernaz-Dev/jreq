@@ -15,8 +15,10 @@ import com.jreq.request.domain.RequestAuthentication;
 import com.jreq.request.domain.KeyValueEntry;
 import com.jreq.request.infrastructure.persistence.JdbcCollectionRepository;
 import com.jreq.request.infrastructure.persistence.JdbcEnvironmentRepository;
+import com.jreq.request.infrastructure.persistence.JdbcCookieRepository;
 import com.jreq.request.infrastructure.persistence.JdbcRequestHistoryRepository;
 import com.jreq.request.infrastructure.persistence.JdbcSavedRequestRepository;
+import com.jreq.request.infrastructure.http.ManagedCookieStore;
 import com.jreq.shared.database.JdbcTransactionManager;
 import com.jreq.shared.database.SqliteConnectionFactory;
 import com.jreq.shared.concurrent.ExecutorServiceTaskExecutor;
@@ -68,6 +70,8 @@ class WorkspaceServiceTest {
                 new JdbcSavedRequestRepository(factory, mapper),
                 new JdbcRequestHistoryRepository(factory, transactionManager, mapper),
                 new JdbcEnvironmentRepository(factory, transactionManager),
+                new JdbcCookieRepository(factory, transactionManager),
+                new ManagedCookieStore(),
                 httpExecutor,
                 databaseExecutor,
                 new RequestVariableResolver(),
