@@ -41,9 +41,9 @@
 }
 
 .layout-compact .cookies-menu {
-    -fx-min-width: 74px;
-    -fx-pref-width: 74px;
-    -fx-max-width: 74px;
+    -fx-min-width: 88px;
+    -fx-pref-width: 88px;
+    -fx-max-width: 100px;
     -fx-font-size: 10px;
 }
 

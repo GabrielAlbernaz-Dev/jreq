@@ -127,7 +127,7 @@ Authentication fields support `{{variable}}` references. Passwords and tokens ar
 
 ### Work with cookies
 
-The cookie jar is enabled by default. jREQ captures valid `Set-Cookie` response fields (including cookies that only set `Expires`) and automatically sends matching cookies on later requests according to domain, host-only, path, expiration, and Secure rules. Open **Cookies** beside the request URL to inspect, add, edit, remove, or **Paste cookies…** as text (`Set-Cookie` lines or a request `Cookie` header). Pasted text is sanitized against unsafe characters, size limits, and host-scoped domain rules before it enters the jar. Use the button menu to disable the jar for an individual request.
+The cookie jar is enabled by default. jREQ captures valid `Set-Cookie` response fields (including cookies that only set `Expires`) and automatically sends matching cookies on later requests according to domain, host-only, path, expiration, and Secure rules. Open the **Cookies** dropdown beside the request URL to manage cookies or enable/disable the jar for the current request. The label shows the matching cookie count when the jar is on. Pasted text is sanitized against unsafe characters, size limits, and host-scoped domain rules before it enters the jar.
 
 An explicit `Cookie` entry in the **Headers** tab overrides an automatic cookie with the same name while leaving other matching jar cookies available. Persistent cookies survive application restarts; session cookies remain in memory only and are cleared when jREQ closes. Saving the cookie manager merges your edits with any cookies captured while the dialog was open.
 

@@ -769,14 +769,38 @@
 }
 
 .cookies-menu {
-    -fx-min-width: 94px;
+    -fx-min-width: 108px;
     -fx-background-color: -jreq-elevated;
     -fx-border-color: -jreq-border;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
 }
 
 .cookies-menu:hover,
 .cookies-menu:showing {
     -fx-border-color: -jreq-red;
+}
+
+.cookies-menu:jar-off {
+    -fx-border-color: -jreq-warning;
+    -fx-background-color: -jreq-interactive;
+}
+
+.cookies-menu:jar-off > .label {
+    -fx-text-fill: -jreq-warning;
+}
+
+.cookies-menu:jar-off > .arrow-button > .arrow {
+    -fx-background-color: -jreq-warning;
+}
+
+.cookies-menu-status:disabled {
+    -fx-opacity: 1;
+}
+
+.cookies-menu-status:disabled > .label {
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 11px;
 }
 
 .cookie-dialog .dialog-pane,
