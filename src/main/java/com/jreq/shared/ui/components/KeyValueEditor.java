@@ -7,6 +7,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
@@ -30,6 +31,12 @@ public final class KeyValueEditor extends VBox {
         getStyleClass().add("key-value-editor");
         rows.getStyleClass().add("key-value-rows");
 
+        ScrollPane rowsScroll = new ScrollPane(rows);
+        rowsScroll.setFitToWidth(true);
+        rowsScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        rowsScroll.getStyleClass().add("key-value-rows-scroll");
+        VBox.setVgrow(rowsScroll, Priority.ALWAYS);
+
         Button addButton = new Button("+ Add item");
         addButton.getStyleClass().add("secondary-button");
         addButton.setOnAction(event -> {
@@ -37,7 +44,7 @@ public final class KeyValueEditor extends VBox {
             renderRows();
             notifyChanged();
         });
-        getChildren().addAll(rows, addButton);
+        getChildren().addAll(rowsScroll, addButton);
         renderRows();
     }
 
@@ -76,6 +83,8 @@ public final class KeyValueEditor extends VBox {
         key.setPromptText("Key");
         key.setAccessibleText("Entry key");
         key.getStyleClass().add("monospace");
+        key.setPrefWidth(100);
+        key.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(key, Priority.ALWAYS);
 
         VariableHighlightingField value = new VariableHighlightingField();
@@ -83,6 +92,7 @@ public final class KeyValueEditor extends VBox {
         value.setPromptText("Value");
         value.setAccessibleText("Entry value");
         value.getStyleClass().add("monospace");
+        value.setPrefWidth(100);
         value.setResolutionStatus(resolutionStatus);
         valueFields.add(value);
         HBox.setHgrow(value, Priority.ALWAYS);

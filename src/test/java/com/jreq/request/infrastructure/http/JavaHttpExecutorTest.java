@@ -33,6 +33,7 @@ class JavaHttpExecutorTest {
 
     private HttpServer server;
     private ExecutorService serverExecutor;
+    private JavaHttpExecutor executor;
 
     @BeforeEach
     void startServer() throws IOException {
@@ -45,14 +46,21 @@ class JavaHttpExecutorTest {
 
     @AfterEach
     void stopServer() {
+        if (executor != null) {
+            executor.close();
+        }
         releaseResponse.countDown();
-        server.stop(0);
-        serverExecutor.shutdownNow();
+        if (server != null) {
+            server.stop(0);
+        }
+        if (serverExecutor != null) {
+            serverExecutor.shutdownNow();
+        }
     }
 
     @Test
     void executesGetAsynchronouslyAndCapturesResponseData() throws Exception {
-        JavaHttpExecutor executor = new JavaHttpExecutor(HttpTimeout.of(Duration.ofSeconds(3)));
+        executor = new JavaHttpExecutor(HttpTimeout.of(Duration.ofSeconds(3)));
         HttpRequestDefinition request = new HttpRequestDefinition(
                 UUID.randomUUID(),
                 "Local users",

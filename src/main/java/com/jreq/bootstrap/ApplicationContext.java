@@ -2,14 +2,20 @@ package com.jreq.bootstrap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jreq.request.application.CollectionRepository;
+import com.jreq.request.application.CookieRepository;
+import com.jreq.request.application.BasicAuthenticationStrategy;
 import com.jreq.request.application.EnvironmentRepository;
 import com.jreq.request.application.HttpExecutor;
 import com.jreq.request.application.RequestHistoryRepository;
+import com.jreq.request.application.JwtBearerAuthenticationStrategy;
+import com.jreq.request.application.RequestAuthenticationApplicator;
 import com.jreq.request.application.SavedRequestRepository;
 import com.jreq.request.application.WorkspaceService;
 import com.jreq.request.application.RequestVariableResolver;
 import com.jreq.request.infrastructure.http.JavaHttpExecutor;
+import com.jreq.request.infrastructure.http.ManagedCookieStore;
 import com.jreq.request.infrastructure.persistence.JdbcCollectionRepository;
+import com.jreq.request.infrastructure.persistence.JdbcCookieRepository;
 import com.jreq.request.infrastructure.persistence.JdbcEnvironmentRepository;
 import com.jreq.request.infrastructure.persistence.JdbcRequestHistoryRepository;
 import com.jreq.request.infrastructure.persistence.JdbcSavedRequestRepository;
@@ -21,6 +27,9 @@ import com.jreq.shared.database.SqliteConnectionFactory;
 import com.jreq.shared.concurrent.ExecutorServiceTaskExecutor;
 import com.jreq.shared.json.JReqObjectMapper;
 
+import java.util.List;
+import java.time.Instant;
+
 public final class ApplicationContext implements AutoCloseable {
     private static final String DATABASE_THREAD_NAME = "jreq-database";
     private static final String RESPONSE_FORMATTING_THREAD_NAME = "jreq-response-formatting";
@@ -29,17 +38,20 @@ public final class ApplicationContext implements AutoCloseable {
     private final MainViewModel mainViewModel;
     private final ExecutorServiceTaskExecutor databaseExecutor;
     private final ExecutorServiceTaskExecutor responseFormattingExecutor;
+    private final HttpExecutor httpExecutor;
 
     private ApplicationContext(
             ApplicationConfiguration configuration,
             MainViewModel mainViewModel,
             ExecutorServiceTaskExecutor databaseExecutor,
-            ExecutorServiceTaskExecutor responseFormattingExecutor
+            ExecutorServiceTaskExecutor responseFormattingExecutor,
+            HttpExecutor httpExecutor
     ) {
         this.configuration = configuration;
         this.mainViewModel = mainViewModel;
         this.databaseExecutor = databaseExecutor;
         this.responseFormattingExecutor = responseFormattingExecutor;
+        this.httpExecutor = httpExecutor;
     }
 
     public static ApplicationContext create() {
@@ -77,12 +89,18 @@ public final class ApplicationContext implements AutoCloseable {
                 new JdbcRequestHistoryRepository(connectionFactory, transactionManager, objectMapper);
         EnvironmentRepository environmentRepository =
                 new JdbcEnvironmentRepository(connectionFactory, transactionManager);
+        CookieRepository cookieRepository =
+                new JdbcCookieRepository(connectionFactory, transactionManager);
+        ManagedCookieStore cookieStore = new ManagedCookieStore();
+        cookieStore.restore(cookieRepository.findAll(Instant.now()));
 
         return new PersistenceComponents(
                 collectionRepository,
                 savedRequestRepository,
                 historyRepository,
                 environmentRepository,
+                cookieRepository,
+                cookieStore,
                 objectMapper);
     }
 
@@ -92,16 +110,23 @@ public final class ApplicationContext implements AutoCloseable {
             ExecutorServiceTaskExecutor databaseExecutor,
             ExecutorServiceTaskExecutor responseFormattingExecutor
     ) {
-        HttpExecutor httpExecutor = new JavaHttpExecutor(configuration.httpTimeout());
+        HttpExecutor httpExecutor = new JavaHttpExecutor(
+                configuration.httpTimeout(), persistence.cookieStore());
         RequestVariableResolver variableResolver = new RequestVariableResolver();
+        RequestAuthenticationApplicator authenticationApplicator = new RequestAuthenticationApplicator(List.of(
+                new BasicAuthenticationStrategy(),
+                new JwtBearerAuthenticationStrategy()));
         WorkspaceService workspaceService = new WorkspaceService(
                 persistence.collections(),
                 persistence.savedRequests(),
                 persistence.history(),
                 persistence.environments(),
+                persistence.cookies(),
+                persistence.cookieStore(),
                 httpExecutor,
                 databaseExecutor,
-                variableResolver);
+                variableResolver,
+                authenticationApplicator);
         return new ApplicationContext(
                 configuration,
                 new MainViewModel(
@@ -110,7 +135,8 @@ public final class ApplicationContext implements AutoCloseable {
                         new ResponseBodyFormatter(persistence.objectMapper()),
                         responseFormattingExecutor),
                 databaseExecutor,
-                responseFormattingExecutor);
+                responseFormattingExecutor,
+                httpExecutor);
     }
 
     public Object createController(Class<?> controllerType) {
@@ -126,6 +152,7 @@ public final class ApplicationContext implements AutoCloseable {
 
     @Override
     public void close() {
+        httpExecutor.close();
         responseFormattingExecutor.close();
         databaseExecutor.close();
     }
@@ -135,6 +162,8 @@ public final class ApplicationContext implements AutoCloseable {
             SavedRequestRepository savedRequests,
             RequestHistoryRepository history,
             EnvironmentRepository environments,
+            CookieRepository cookies,
+            ManagedCookieStore cookieStore,
             ObjectMapper objectMapper
     ) {
     }

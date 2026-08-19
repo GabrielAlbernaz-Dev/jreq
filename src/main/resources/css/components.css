@@ -413,8 +413,9 @@
 }
 
 .request-bar {
-    -fx-min-height: 60px;
-    -fx-padding: 10px 16px;
+    -fx-min-height: 64px;
+    -fx-pref-height: 64px;
+    -fx-padding: 12px 16px;
     -fx-spacing: 8px;
     -fx-background-color: -jreq-background;
 }
@@ -422,6 +423,7 @@
 .request-bar .combo-box,
 .request-bar .text-field,
 .request-bar .variable-highlighting-field,
+.request-bar .menu-button,
 .request-bar .split-menu-button,
 .send-button {
     -fx-min-height: 40px;
@@ -446,7 +448,6 @@
 }
 
 .variable-highlighting-editor {
-    -fx-padding: 10px 12px;
     -fx-font-family: "JetBrains Mono", "Consolas", "Monospaced";
     -fx-font-size: 13px;
 }
@@ -463,7 +464,7 @@
     -fx-fill: -jreq-red-soft;
 }
 
-.variable-highlighting-editor .placeholder {
+.variable-highlighting-field .placeholder {
     -fx-text-fill: -jreq-text-disabled;
 }
 
@@ -473,12 +474,10 @@
 
 .variable-token-resolved {
     -fx-fill: -jreq-success;
-    -fx-font-weight: 700;
 }
 
 .variable-token-invalid {
     -fx-fill: -jreq-error;
-    -fx-font-weight: 700;
     -rtfx-background-color: rgba(255, 100, 100, 0.12);
 }
 
@@ -601,8 +600,20 @@
     -fx-alignment: TOP_LEFT;
 }
 
+.key-value-rows-scroll,
+.key-value-rows-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.key-value-rows-scroll {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+}
+
 .key-value-rows {
     -fx-spacing: 6px;
+    -fx-padding: 2px;
 }
 
 .key-value-row {
@@ -611,12 +622,46 @@
 
 .key-value-row .text-field,
 .key-value-row .variable-highlighting-field {
-    -fx-min-height: 36px;
-    -fx-pref-height: 36px;
+    -fx-min-height: 40px;
+    -fx-pref-height: 40px;
 }
 
 .key-value-row .check-box {
     -fx-min-width: 24px;
+}
+
+.authentication-scroll,
+.authentication-scroll > .viewport {
+    -fx-background-color: -jreq-background;
+}
+
+.authentication-editor {
+    -fx-padding: 12px 16px 16px 16px;
+    -fx-background-color: -jreq-background;
+}
+
+.authentication-method-selector {
+    -fx-pref-width: 180px;
+}
+
+.authentication-fields {
+    -fx-padding: 4px 0 2px 0;
+}
+
+.authentication-text-field,
+.masked-authentication-field .text-field,
+.masked-authentication-field .password-field {
+    -fx-min-height: 38px;
+    -fx-pref-height: 38px;
+    -fx-max-height: 38px;
+}
+
+.masked-authentication-field .quiet-action {
+    -fx-min-width: 52px;
+}
+
+.authentication-storage-warning {
+    -fx-text-fill: -jreq-warning;
 }
 
 .response-heading {
@@ -641,8 +686,8 @@
 }
 
 .response-body-toolbar {
-    -fx-min-height: 36px;
-    -fx-padding: 4px 10px;
+    -fx-min-height: 40px;
+    -fx-padding: 6px 10px;
     -fx-spacing: 8px;
     -fx-background-color: -jreq-surface;
     -fx-border-color: -jreq-subtle-border;
@@ -731,4 +776,67 @@
 .connection-indicator {
     -fx-text-fill: -jreq-success;
     -fx-font-size: 9px;
+}
+
+.cookies-menu {
+    -fx-min-width: 108px;
+    -fx-background-color: -jreq-elevated;
+    -fx-border-color: -jreq-border;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+}
+
+.cookies-menu:hover,
+.cookies-menu:showing {
+    -fx-border-color: -jreq-red;
+}
+
+.cookies-menu:jar-off {
+    -fx-border-color: -jreq-warning;
+    -fx-background-color: -jreq-interactive;
+}
+
+.cookies-menu:jar-off > .label {
+    -fx-text-fill: -jreq-warning;
+}
+
+.cookies-menu:jar-off > .arrow-button > .arrow {
+    -fx-background-color: -jreq-warning;
+}
+
+.cookies-menu-status:disabled {
+    -fx-opacity: 1;
+}
+
+.cookies-menu-status:disabled > .label {
+    -fx-text-fill: -jreq-text-disabled;
+    -fx-font-size: 11px;
+}
+
+.cookie-dialog .dialog-pane,
+.cookie-dialog {
+    -fx-background-color: -jreq-surface;
+}
+
+.cookie-split {
+    -fx-background-color: -jreq-background;
+}
+
+.cookie-navigation,
+.cookie-editor {
+    -fx-padding: 12px;
+    -fx-spacing: 8px;
+    -fx-background-color: -jreq-surface;
+}
+
+.cookie-navigation .list-view,
+.cookie-editor .table-view {
+    -fx-background-color: -jreq-background;
+    -fx-border-color: -jreq-subtle-border;
+}
+
+.cookie-editor .table-row-cell:selected,
+.cookie-navigation .list-cell:selected {
+    -fx-background-color: -jreq-red-soft;
+    -fx-text-fill: -jreq-text;
 }

@@ -6,4 +6,7 @@ import java.util.concurrent.CompletableFuture;
 
 public interface HttpExecutor {
     CompletableFuture<HttpResponseResult> execute(HttpRequestDefinition request);
+
+    default void close() {
+    }
 }

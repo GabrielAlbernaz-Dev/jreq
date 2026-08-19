@@ -11,11 +11,15 @@ import com.jreq.request.domain.RequestHistoryEntry;
 import com.jreq.request.domain.RequestLocation;
 import com.jreq.request.domain.SavedRequest;
 import com.jreq.request.domain.WorkspaceName;
+import com.jreq.request.domain.StoredCookie;
 import com.jreq.shared.concurrent.AsyncTaskExecutor;
 
 import java.time.Instant;
+import java.net.URI;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -26,26 +30,36 @@ public final class WorkspaceService {
     private final SavedRequestRepository savedRequestRepository;
     private final RequestHistoryRepository historyRepository;
     private final EnvironmentRepository environmentRepository;
+    private final CookieRepository cookieRepository;
+    private final CookieJar cookieJar;
     private final HttpExecutor httpExecutor;
     private final AsyncTaskExecutor databaseExecutor;
     private final RequestVariableResolver variableResolver;
+    private final RequestAuthenticationApplicator authenticationApplicator;
 
     public WorkspaceService(
             CollectionRepository collectionRepository,
             SavedRequestRepository savedRequestRepository,
             RequestHistoryRepository historyRepository,
             EnvironmentRepository environmentRepository,
+            CookieRepository cookieRepository,
+            CookieJar cookieJar,
             HttpExecutor httpExecutor,
             AsyncTaskExecutor databaseExecutor,
-            RequestVariableResolver variableResolver
+            RequestVariableResolver variableResolver,
+            RequestAuthenticationApplicator authenticationApplicator
     ) {
         this.collectionRepository = Objects.requireNonNull(collectionRepository, "collectionRepository");
         this.savedRequestRepository = Objects.requireNonNull(savedRequestRepository, "savedRequestRepository");
         this.historyRepository = Objects.requireNonNull(historyRepository, "historyRepository");
         this.environmentRepository = Objects.requireNonNull(environmentRepository, "environmentRepository");
+        this.cookieRepository = Objects.requireNonNull(cookieRepository, "cookieRepository");
+        this.cookieJar = Objects.requireNonNull(cookieJar, "cookieJar");
         this.httpExecutor = Objects.requireNonNull(httpExecutor, "httpExecutor");
         this.databaseExecutor = Objects.requireNonNull(databaseExecutor, "databaseExecutor");
         this.variableResolver = Objects.requireNonNull(variableResolver, "variableResolver");
+        this.authenticationApplicator =
+                Objects.requireNonNull(authenticationApplicator, "authenticationApplicator");
     }
 
     public CompletableFuture<WorkspaceSnapshot> loadWorkspace() {
@@ -54,7 +68,8 @@ public final class WorkspaceService {
                 savedRequestRepository.findAll(),
                 historyRepository.findRecent(HISTORY_LIMIT),
                 environmentRepository.loadConfiguration(),
-                environmentRepository.findActivations()
+                environmentRepository.findActivations(),
+                cookieJar.snapshot()
         ));
     }
 
@@ -101,12 +116,8 @@ public final class WorkspaceService {
         Objects.requireNonNull(context, "context");
         return databaseExecutor.submit(() -> prepareExecution(request, context))
                 .thenCompose(prepared -> httpExecutor.execute(prepared.resolvedRequest())
-                .thenCompose(result -> databaseExecutor.submit(() -> {
-            RequestHistoryEntry entry = new RequestHistoryEntry(
-                    UUID.randomUUID(), request.name(), request, result, Instant.now(), prepared.historyContext());
-            historyRepository.appendAndTrim(entry, HISTORY_LIMIT);
-            return ExecutionReport.saved(result);
-        }).exceptionally(exception -> ExecutionReport.withoutHistory(result))));
+                .thenCompose(result -> databaseExecutor.submit(() -> completeExecution(
+                        request, prepared, result))));
     }
 
     public CompletableFuture<ExecutionReport> executeAndRecord(HttpRequestDefinition request) {
@@ -121,6 +132,28 @@ public final class WorkspaceService {
             environmentRepository.saveConfiguration(configuration);
             return null;
         });
+    }
+
+    public CompletableFuture<Void> saveCookies(List<StoredCookie> cookies) {
+        return saveCookies(CookieJarEdit.of(
+                List.copyOf(Objects.requireNonNull(cookies, "cookies")),
+                Set.of(),
+                true));
+    }
+
+    public CompletableFuture<Void> saveCookies(CookieJarEdit edit) {
+        CookieJarEdit safeEdit = Objects.requireNonNull(edit, "edit");
+        return databaseExecutor.submit(() -> {
+            cookieJar.applyEdit(safeEdit);
+            CookieJarState state = cookieJar.state();
+            cookieRepository.replaceAll(state.persistentCookies());
+            cookieJar.markPersisted(state.revision());
+            return null;
+        });
+    }
+
+    public List<StoredCookie> cookiesFor(URI uri) {
+        return cookieJar.matching(Objects.requireNonNull(uri, "uri"));
     }
 
     public CompletableFuture<Void> selectEnvironment(
@@ -157,13 +190,47 @@ public final class WorkspaceService {
         Optional<RequestEnvironment> selected = selectedEnvironment(configuration, context);
         HttpRequestDefinition resolved = variableResolver.resolve(
                 request, configuration.globals(), selected);
+        HttpRequestDefinition authenticated = authenticationApplicator.apply(resolved);
         HistoryEnvironmentReference historyEnvironment = selected
                 .<HistoryEnvironmentReference>map(environment -> HistoryEnvironmentReference.selected(
                         environment.id(), environment.name(), environment.scope()))
                 .orElseGet(HistoryEnvironmentReference::none);
         return new PreparedExecution(
-                resolved,
+                authenticated,
                 new HistoryExecutionContext(context.location(), historyEnvironment));
+    }
+
+    private ExecutionReport completeExecution(
+            HttpRequestDefinition request,
+            PreparedExecution prepared,
+            HttpResponseResult result
+    ) {
+        String cookieWarning = persistCookies();
+        boolean historySaved = true;
+        String historyWarning = "";
+        try {
+            RequestHistoryEntry entry = new RequestHistoryEntry(
+                    UUID.randomUUID(), request.name(), request, result, Instant.now(), prepared.historyContext());
+            historyRepository.appendAndTrim(entry, HISTORY_LIMIT);
+        } catch (RuntimeException historyFailure) {
+            historySaved = false;
+            historyWarning = "Response received, but history could not be saved.";
+        }
+        return ExecutionReport.completed(result, historySaved, historyWarning, cookieWarning);
+    }
+
+    private String persistCookies() {
+        CookieJarState state = cookieJar.state();
+        if (!state.dirty()) {
+            return "";
+        }
+        try {
+            cookieRepository.replaceAll(state.persistentCookies());
+            cookieJar.markPersisted(state.revision());
+            return "";
+        } catch (RuntimeException cookieFailure) {
+            return "Cookies were updated for this session, but could not be saved.";
+        }
     }
 
     private Optional<RequestEnvironment> selectedEnvironment(

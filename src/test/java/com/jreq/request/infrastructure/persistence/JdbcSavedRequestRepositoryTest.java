@@ -6,6 +6,7 @@ import com.jreq.request.domain.HttpRequestDefinition;
 import com.jreq.request.domain.KeyValueEntry;
 import com.jreq.request.domain.RequestBody;
 import com.jreq.request.domain.RequestLocation;
+import com.jreq.request.domain.RequestAuthentication;
 import com.jreq.shared.database.SqliteConnectionFactory;
 import com.jreq.shared.exception.ErrorCategory;
 import com.jreq.shared.exception.JReqException;
@@ -37,7 +38,8 @@ class JdbcSavedRequestRepositoryTest {
                 "https://api.example.com/repositories",
                 List.of(new KeyValueEntry(UUID.randomUUID(), "q", "javafx", true)),
                 List.of(),
-                RequestBody.none()
+                RequestBody.none(),
+                new RequestAuthentication.JwtBearer("{{repository_token}}")
         );
 
         repository.save(request, RequestLocation.root());

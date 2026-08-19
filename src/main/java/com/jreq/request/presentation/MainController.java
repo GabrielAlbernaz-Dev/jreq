@@ -9,7 +9,6 @@ import com.jreq.request.domain.RequestLocation;
 import com.jreq.request.domain.SavedRequest;
 import com.jreq.shared.ui.ErrorAlert;
 import com.jreq.shared.ui.ResponsiveLayoutManager;
-import com.jreq.shared.ui.components.EmptyStateView;
 import com.jreq.shared.ui.components.KeyValueEditor;
 import com.jreq.shared.ui.components.RequestBarControl;
 import com.jreq.shared.ui.components.ResponseMetadataView;
@@ -40,6 +39,7 @@ import javafx.util.StringConverter;
 
 import java.util.List;
 import java.util.Objects;
+import java.net.URI;
 
 public final class MainController implements WorkspaceSidebar.Actions {
     private static final PseudoClass FORMAT_ERROR = PseudoClass.getPseudoClass("format-error");
@@ -67,7 +67,7 @@ public final class MainController implements WorkspaceSidebar.Actions {
     @FXML private Label requestLocationLabel;
     @FXML private Label variableFeedbackLabel;
     @FXML private Label dirtyIndicator;
-    @FXML private EmptyStateView authEmptyState;
+    @FXML private AuthenticationEditor authenticationEditor;
     @FXML private VBox rootRequests;
     @FXML private VBox collectionsList;
     @FXML private VBox historyList;
@@ -90,9 +90,6 @@ public final class MainController implements WorkspaceSidebar.Actions {
         installListRendering();
         installEnvironmentMenu();
 
-        authEmptyState.setTitle("Authentication is not configured");
-        authEmptyState.setDescription(
-                "Auth strategies will be added incrementally without storing credentials here.");
         viewModel.errorMessageProperty().addListener((observable, oldValue, message) -> {
             if (message != null && !message.isBlank()) {
                 ErrorAlert.show(owner(), "Operation failed", message);
@@ -114,6 +111,11 @@ public final class MainController implements WorkspaceSidebar.Actions {
         requestBar.setOnSend(viewModel::sendRequest);
         requestBar.setOnSave(this::handleSave);
         requestBar.setOnSaveAs(this::handleSaveAs);
+        requestBar.setOnManageCookies(this::handleManageCookies);
+        requestBar.cookieJarEnabledProperty().bindBidirectional(viewModel.cookieJarEnabledProperty());
+        requestBar.setCookieCount(viewModel.applicableCookieCountProperty().get());
+        viewModel.applicableCookieCountProperty().addListener(
+                (observable, oldValue, count) -> requestBar.setCookieCount(count.intValue()));
         viewModel.loadingProperty().addListener((observable, oldValue, loading) ->
                 requestBar.setLoading(loading));
 
@@ -139,6 +141,7 @@ public final class MainController implements WorkspaceSidebar.Actions {
         requestBody.disableProperty().bind(viewModel.bodyTypeProperty().isEqualTo(RequestBodyType.NONE));
         paramsEditor.setOnChange(viewModel::updateQueryParameters);
         headersEditor.setOnChange(viewModel::updateHeaders);
+        authenticationEditor.setOnChange(viewModel::updateAuthentication);
         requestNameLabel.textProperty().bind(viewModel.requestNameProperty());
         dirtyIndicator.visibleProperty().bind(viewModel.dirtyProperty());
         dirtyIndicator.managedProperty().bind(viewModel.dirtyProperty());
@@ -162,6 +165,7 @@ public final class MainController implements WorkspaceSidebar.Actions {
         requestBar.setVariableResolutionStatus(status);
         paramsEditor.setVariableResolutionStatus(status);
         headersEditor.setVariableResolutionStatus(status);
+        authenticationEditor.setVariableResolutionStatus(status);
     }
 
     private void applyVariableFeedbackStyle(VariableFeedbackState state) {
@@ -183,6 +187,23 @@ public final class MainController implements WorkspaceSidebar.Actions {
         responseHeaders.textProperty().bind(viewModel.responseHeadersProperty());
         responseRaw.textProperty().bind(viewModel.responseRawProperty());
         statusMessage.textProperty().bind(viewModel.statusMessageProperty());
+    }
+
+    private void handleManageCookies() {
+        URI currentUri;
+        try {
+            currentUri = URI.create(viewModel.urlProperty().get());
+        } catch (IllegalArgumentException invalidUrl) {
+            currentUri = URI.create("jreq:/");
+        }
+        new CookieManagementDialog(
+                owner(), viewModel.cookies(), currentUri, viewModel.responsiveModeProperty().get())
+                .show()
+                .ifPresent(edit -> {
+                    if (!edit.isEmpty()) {
+                        viewModel.saveCookies(edit);
+                    }
+                });
     }
 
     private void configureResponseFormatSelector() {
@@ -358,8 +379,12 @@ public final class MainController implements WorkspaceSidebar.Actions {
 
     public void installSceneBehavior(Scene scene) {
         responsiveLayoutManager = new ResponsiveLayoutManager(mainRoot, viewModel.sidebarExpandedProperty());
-        responsiveLayoutManager.modeProperty().addListener((observable, oldMode, newMode) ->
-                viewModel.responsiveModeProperty().set(newMode));
+        responsiveLayoutManager.modeProperty().addListener((observable, oldMode, newMode) -> {
+            viewModel.responsiveModeProperty().set(newMode);
+            responseMetadata.setCompact(newMode == com.jreq.shared.ui.ResponsiveLayoutMode.COMPACT);
+        });
+        responseMetadata.setCompact(
+                responsiveLayoutManager.modeProperty().get() == com.jreq.shared.ui.ResponsiveLayoutMode.COMPACT);
         responsiveLayoutManager.attach(scene);
         scene.getAccelerators().put(shortcut(KeyCode.ENTER), viewModel::sendRequest);
         scene.getAccelerators().put(shortcut(KeyCode.B), viewModel::toggleSidebar);
@@ -515,6 +540,7 @@ public final class MainController implements WorkspaceSidebar.Actions {
     private void syncEditorsFromViewModel() {
         paramsEditor.setEntries(viewModel.queryParameters());
         headersEditor.setEntries(viewModel.headers());
+        authenticationEditor.setAuthentication(viewModel.authentication());
     }
 
     private boolean isEditingCollection(RequestCollection collection) {
