@@ -413,8 +413,9 @@
 }
 
 .request-bar {
-    -fx-min-height: 60px;
-    -fx-padding: 10px 16px;
+    -fx-min-height: 64px;
+    -fx-pref-height: 64px;
+    -fx-padding: 12px 16px;
     -fx-spacing: 8px;
     -fx-background-color: -jreq-background;
 }
@@ -447,7 +448,6 @@
 }
 
 .variable-highlighting-editor {
-    -fx-padding: 10px 12px;
     -fx-font-family: "JetBrains Mono", "Consolas", "Monospaced";
     -fx-font-size: 13px;
 }
@@ -464,7 +464,7 @@
     -fx-fill: -jreq-red-soft;
 }
 
-.variable-highlighting-editor .placeholder {
+.variable-highlighting-field .placeholder {
     -fx-text-fill: -jreq-text-disabled;
 }
 
@@ -474,12 +474,10 @@
 
 .variable-token-resolved {
     -fx-fill: -jreq-success;
-    -fx-font-weight: 700;
 }
 
 .variable-token-invalid {
     -fx-fill: -jreq-error;
-    -fx-font-weight: 700;
     -rtfx-background-color: rgba(255, 100, 100, 0.12);
 }
 
@@ -602,8 +600,20 @@
     -fx-alignment: TOP_LEFT;
 }
 
+.key-value-rows-scroll,
+.key-value-rows-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.key-value-rows-scroll {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+}
+
 .key-value-rows {
     -fx-spacing: 6px;
+    -fx-padding: 2px;
 }
 
 .key-value-row {
@@ -612,8 +622,8 @@
 
 .key-value-row .text-field,
 .key-value-row .variable-highlighting-field {
-    -fx-min-height: 36px;
-    -fx-pref-height: 36px;
+    -fx-min-height: 40px;
+    -fx-pref-height: 40px;
 }
 
 .key-value-row .check-box {
@@ -676,8 +686,8 @@
 }
 
 .response-body-toolbar {
-    -fx-min-height: 36px;
-    -fx-padding: 4px 10px;
+    -fx-min-height: 40px;
+    -fx-padding: 6px 10px;
     -fx-spacing: 8px;
     -fx-background-color: -jreq-surface;
     -fx-border-color: -jreq-subtle-border;

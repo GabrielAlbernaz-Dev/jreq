@@ -347,7 +347,10 @@ public final class CookieManagementDialog {
         form.add(new HBox(12, hostOnly, secure, httpOnly, session), 1, 5);
         form.add(validation, 1, 6);
         GridPane.setHgrow(valueRow, Priority.ALWAYS);
-        dialog.getDialogPane().setContent(new ScrollPane(form));
+        ScrollPane formScroll = new ScrollPane(form);
+        formScroll.setFitToWidth(true);
+        formScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        dialog.getDialogPane().setContent(formScroll);
         ButtonType save = DialogButtons.save();
         dialog.getDialogPane().getButtonTypes().addAll(save, DialogButtons.cancel());
         Node saveButton = dialog.getDialogPane().lookupButton(save);
@@ -367,6 +370,14 @@ public final class CookieManagementDialog {
                 session.isSelected(), expires.getText(), now)
                 : null);
         style(dialog);
+        dialog.setResizable(true);
+        double width = layoutMode == ResponsiveLayoutMode.COMPACT ? 460 : 560;
+        double height = layoutMode == ResponsiveLayoutMode.COMPACT ? 520 : 480;
+        if (owner != null && owner.getWidth() > 0) {
+            width = Math.min(width, owner.getWidth() * 0.9);
+            height = Math.min(height, owner.getHeight() * 0.86);
+        }
+        dialog.getDialogPane().setPrefSize(width, height);
         return dialog.showAndWait();
     }
 

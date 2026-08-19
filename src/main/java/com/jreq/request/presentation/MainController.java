@@ -379,8 +379,12 @@ public final class MainController implements WorkspaceSidebar.Actions {
 
     public void installSceneBehavior(Scene scene) {
         responsiveLayoutManager = new ResponsiveLayoutManager(mainRoot, viewModel.sidebarExpandedProperty());
-        responsiveLayoutManager.modeProperty().addListener((observable, oldMode, newMode) ->
-                viewModel.responsiveModeProperty().set(newMode));
+        responsiveLayoutManager.modeProperty().addListener((observable, oldMode, newMode) -> {
+            viewModel.responsiveModeProperty().set(newMode);
+            responseMetadata.setCompact(newMode == com.jreq.shared.ui.ResponsiveLayoutMode.COMPACT);
+        });
+        responseMetadata.setCompact(
+                responsiveLayoutManager.modeProperty().get() == com.jreq.shared.ui.ResponsiveLayoutMode.COMPACT);
         responsiveLayoutManager.attach(scene);
         scene.getAccelerators().put(shortcut(KeyCode.ENTER), viewModel::sendRequest);
         scene.getAccelerators().put(shortcut(KeyCode.B), viewModel::toggleSidebar);

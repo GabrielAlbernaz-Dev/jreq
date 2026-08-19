@@ -1,10 +1,13 @@
 package com.jreq.shared.ui.components;
 
 import com.jreq.request.application.VariableResolutionStatus;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.application.Platform;
 import javafx.css.PseudoClass;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.AccessibleRole;
 import javafx.scene.control.Label;
 import javafx.scene.input.KeyCode;
@@ -33,11 +36,15 @@ public final class VariableHighlightingField extends StackPane {
     public VariableHighlightingField() {
         getStyleClass().add("variable-highlighting-field");
         setAccessibleRole(AccessibleRole.TEXT_FIELD);
+        setMaxWidth(Double.MAX_VALUE);
+        setMaxHeight(Double.MAX_VALUE);
+        setFocusTraversable(false);
+        setOnMousePressed(event -> editor.requestFocus());
 
         editor.getStyleClass().add("variable-highlighting-editor");
         editor.setWrapText(false);
         placeholder.getStyleClass().add("placeholder");
-        editor.setPlaceholder(placeholder);
+        placeholder.setMouseTransparent(true);
         editor.textProperty().addListener((observable, oldValue, newValue) -> {
             if (!synchronizing) {
                 synchronizing = true;
@@ -65,9 +72,19 @@ public final class VariableHighlightingField extends StackPane {
             }
         });
 
+        editor.heightProperty().addListener((observable, oldHeight, newHeight) -> updateVerticalPadding());
+        Platform.runLater(this::updateVerticalPadding);
+
         VirtualizedScrollPane<CodeArea> scrollPane = new VirtualizedScrollPane<>(editor);
         scrollPane.getStyleClass().add("variable-highlighting-scroll");
-        getChildren().add(scrollPane);
+        scrollPane.setMaxWidth(Double.MAX_VALUE);
+        scrollPane.setMaxHeight(Double.MAX_VALUE);
+
+        StackPane.setAlignment(placeholder, Pos.CENTER_LEFT);
+        StackPane.setMargin(placeholder, new Insets(0, 0, 0, 10));
+        placeholder.visibleProperty().bind(Bindings.createBooleanBinding(
+                () -> editor.getText().isEmpty(), editor.textProperty()));
+        getChildren().addAll(scrollPane, placeholder);
     }
 
     public StringProperty textProperty() {
@@ -110,6 +127,15 @@ public final class VariableHighlightingField extends StackPane {
 
     private String sanitize(String value) {
         return Objects.requireNonNullElse(value, "").replace('\n', ' ').replace('\r', ' ');
+    }
+
+    private void updateVerticalPadding() {
+        double lineHeight = editor.totalHeightEstimateProperty().getOrElse(0.0);
+        if (lineHeight <= 0) {
+            return;
+        }
+        double top = Math.max(0, (editor.getHeight() - lineHeight) / 2);
+        editor.setPadding(new Insets(top, 10, 0, 10));
     }
 
     private void normalizeEditorText() {

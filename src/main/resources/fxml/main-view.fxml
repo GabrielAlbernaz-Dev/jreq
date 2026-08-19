@@ -76,7 +76,7 @@
                     <Button text="Clear" onAction="#handleClearHistory"
                             styleClass="quiet-action" accessibleText="Clear history"/>
                 </HBox>
-                <ScrollPane fitToWidth="true" hbarPolicy="NEVER" prefViewportHeight="168"
+                <ScrollPane fitToWidth="true" hbarPolicy="NEVER"
                             styleClass="sidebar-scroll,history-scroll">
                     <content><VBox fx:id="historyList" styleClass="sidebar-list"/></content>
                 </ScrollPane>
