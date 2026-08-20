@@ -52,9 +52,13 @@
                 <HBox alignment="CENTER_LEFT" styleClass="sidebar-heading-row">
                     <Label text="COLLECTIONS" styleClass="section-kicker"/>
                     <Region HBox.hgrow="ALWAYS"/>
-                    <Button text="+" onAction="#handleNewCollection"
-                            styleClass="icon-button,small-icon-button" accessibleText="New collection">
+                    <Button text="New" onAction="#handleNewCollection"
+                            styleClass="quiet-action" accessibleText="New collection">
                         <tooltip><Tooltip text="New collection"/></tooltip>
+                    </Button>
+                    <Button text="Import" onAction="#handleImportCollection"
+                            styleClass="quiet-action" accessibleText="Import collection">
+                        <tooltip><Tooltip text="Import a collection (JSON)"/></tooltip>
                     </Button>
                 </HBox>
                 <ScrollPane fitToWidth="true" hbarPolicy="NEVER" VBox.vgrow="ALWAYS"

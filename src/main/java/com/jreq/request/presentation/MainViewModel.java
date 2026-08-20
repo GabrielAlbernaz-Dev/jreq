@@ -1,6 +1,7 @@
 package com.jreq.request.presentation;
 
 import com.jreq.request.application.CookieJarEdit;
+import com.jreq.request.application.CollectionImportResult;
 import com.jreq.request.application.ExecutionReport;
 import com.jreq.request.application.EnvironmentActivation;
 import com.jreq.request.application.EnvironmentConfiguration;
@@ -45,6 +46,7 @@ import javafx.collections.ObservableList;
 
 import java.time.Duration;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
@@ -328,6 +330,31 @@ public final class MainViewModel {
         });
     }
 
+    public CompletableFuture<CollectionImportResult> importCollection(Path file) {
+        Objects.requireNonNull(file, "file");
+        statusMessage.set("Importing collection…");
+        CompletableFuture<CollectionImportResult> result = new CompletableFuture<>();
+        workspaceService.importCollection(file)
+                .thenCompose(importResult -> workspaceService.loadWorkspace()
+                        .thenApply(snapshot -> new ImportCompletion(importResult, snapshot)))
+                .whenComplete((completion, failure) -> onFx(() -> {
+                    if (failure != null) {
+                        showFailure(failure, "The collection could not be imported.");
+                        result.completeExceptionally(unwrap(failure));
+                        return;
+                    }
+                    applyWorkspace(completion.snapshot());
+                    CollectionImportResult importResult = completion.importResult();
+                    statusMessage.set("Imported " + importResult.collection().name()
+                            + " — " + importResult.importedRequestCount() + " requests"
+                            + (importResult.skippedRequestCount() > 0
+                                    ? ", " + importResult.skippedRequestCount() + " skipped"
+                                    : ""));
+                    result.complete(importResult);
+                }));
+        return result;
+    }
+
     public CompletableFuture<Void> renameCollection(RequestCollection collection, String name) {
         return applyFuture(workspaceService.renameCollection(collection, name), updated -> {
             collections.removeIf(item -> item.id().equals(updated.id()));
@@ -460,6 +487,23 @@ public final class MainViewModel {
                 authentication,
                 cookieJarEnabled.get() ? CookieJarMode.ENABLED : CookieJarMode.DISABLED
         );
+    }
+
+    /**
+     * Returns the request URI after applying the currently selected environment.
+     * Cookie management needs the resolved host/path to validate pasted cookies;
+     * parsing the editor's template URL directly would reject placeholders such
+     * as {@code {{api_host}}}.
+     */
+    public Optional<URI> requestUriForCookies() {
+        try {
+            HttpRequestDefinition resolved = variableResolver.resolve(
+                    definition(), environmentConfiguration.globals(), selectedEnvironment());
+            URI uri = URI.create(resolved.url());
+            return uri.getHost() == null ? Optional.empty() : Optional.of(uri);
+        } catch (RuntimeException invalidOrUnresolvedUrl) {
+            return Optional.empty();
+        }
     }
 
     private CompletableFuture<SavedRequest> saveDefinition(
@@ -893,5 +937,8 @@ public final class MainViewModel {
     }
 
     private record SendCompletion(ExecutionReport report, WorkspaceSnapshot snapshot) {
+    }
+
+    private record ImportCompletion(CollectionImportResult importResult, WorkspaceSnapshot snapshot) {
     }
 }
