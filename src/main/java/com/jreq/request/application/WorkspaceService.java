@@ -16,6 +16,7 @@ import com.jreq.shared.concurrent.AsyncTaskExecutor;
 
 import java.time.Instant;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -36,6 +37,7 @@ public final class WorkspaceService {
     private final AsyncTaskExecutor databaseExecutor;
     private final RequestVariableResolver variableResolver;
     private final RequestAuthenticationApplicator authenticationApplicator;
+    private final CollectionImportService collectionImportService;
 
     public WorkspaceService(
             CollectionRepository collectionRepository,
@@ -49,6 +51,33 @@ public final class WorkspaceService {
             RequestVariableResolver variableResolver,
             RequestAuthenticationApplicator authenticationApplicator
     ) {
+        this(
+                collectionRepository,
+                savedRequestRepository,
+                historyRepository,
+                environmentRepository,
+                cookieRepository,
+                cookieJar,
+                httpExecutor,
+                databaseExecutor,
+                variableResolver,
+                authenticationApplicator,
+                new CollectionImportService(collectionRepository, databaseExecutor));
+    }
+
+    public WorkspaceService(
+            CollectionRepository collectionRepository,
+            SavedRequestRepository savedRequestRepository,
+            RequestHistoryRepository historyRepository,
+            EnvironmentRepository environmentRepository,
+            CookieRepository cookieRepository,
+            CookieJar cookieJar,
+            HttpExecutor httpExecutor,
+            AsyncTaskExecutor databaseExecutor,
+            RequestVariableResolver variableResolver,
+            RequestAuthenticationApplicator authenticationApplicator,
+            CollectionImportService collectionImportService
+    ) {
         this.collectionRepository = Objects.requireNonNull(collectionRepository, "collectionRepository");
         this.savedRequestRepository = Objects.requireNonNull(savedRequestRepository, "savedRequestRepository");
         this.historyRepository = Objects.requireNonNull(historyRepository, "historyRepository");
@@ -60,6 +89,8 @@ public final class WorkspaceService {
         this.variableResolver = Objects.requireNonNull(variableResolver, "variableResolver");
         this.authenticationApplicator =
                 Objects.requireNonNull(authenticationApplicator, "authenticationApplicator");
+        this.collectionImportService =
+                Objects.requireNonNull(collectionImportService, "collectionImportService");
     }
 
     public CompletableFuture<WorkspaceSnapshot> loadWorkspace() {
@@ -79,6 +110,10 @@ public final class WorkspaceService {
             Instant now = Instant.now();
             return collectionRepository.save(new RequestCollection(UUID.randomUUID(), validName, now, now));
         });
+    }
+
+    public CompletableFuture<CollectionImportResult> importCollection(Path file) {
+        return collectionImportService.importCollection(file);
     }
 
     public CompletableFuture<RequestCollection> renameCollection(RequestCollection collection, String name) {

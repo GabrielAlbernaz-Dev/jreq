@@ -1,6 +1,7 @@
 package com.jreq.request.presentation;
 
 import com.jreq.request.application.CookieJarEdit;
+import com.jreq.request.application.CollectionImportResult;
 import com.jreq.request.application.ExecutionReport;
 import com.jreq.request.application.EnvironmentActivation;
 import com.jreq.request.application.EnvironmentConfiguration;
@@ -45,6 +46,7 @@ import javafx.collections.ObservableList;
 
 import java.time.Duration;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
@@ -326,6 +328,31 @@ public final class MainViewModel {
             sortCollections();
             statusMessage.set("Collection created");
         });
+    }
+
+    public CompletableFuture<CollectionImportResult> importCollection(Path file) {
+        Objects.requireNonNull(file, "file");
+        statusMessage.set("Importing collection…");
+        CompletableFuture<CollectionImportResult> result = new CompletableFuture<>();
+        workspaceService.importCollection(file)
+                .thenCompose(importResult -> workspaceService.loadWorkspace()
+                        .thenApply(snapshot -> new ImportCompletion(importResult, snapshot)))
+                .whenComplete((completion, failure) -> onFx(() -> {
+                    if (failure != null) {
+                        showFailure(failure, "The collection could not be imported.");
+                        result.completeExceptionally(unwrap(failure));
+                        return;
+                    }
+                    applyWorkspace(completion.snapshot());
+                    CollectionImportResult importResult = completion.importResult();
+                    statusMessage.set("Imported " + importResult.collection().name()
+                            + " — " + importResult.importedRequestCount() + " requests"
+                            + (importResult.skippedRequestCount() > 0
+                                    ? ", " + importResult.skippedRequestCount() + " skipped"
+                                    : ""));
+                    result.complete(importResult);
+                }));
+        return result;
     }
 
     public CompletableFuture<Void> renameCollection(RequestCollection collection, String name) {
@@ -893,5 +920,8 @@ public final class MainViewModel {
     }
 
     private record SendCompletion(ExecutionReport report, WorkspaceSnapshot snapshot) {
+    }
+
+    private record ImportCompletion(CollectionImportResult importResult, WorkspaceSnapshot snapshot) {
     }
 }

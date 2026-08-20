@@ -1,5 +1,6 @@
 package com.jreq.request.presentation;
 
+import com.jreq.request.application.CollectionImportResult;
 import com.jreq.request.application.EnvironmentConfiguration;
 import com.jreq.request.domain.RequestCollection;
 import com.jreq.request.domain.RequestLocation;
@@ -28,6 +29,8 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 final class WorkspaceDialogs {
+    private static final int MAX_SHOWN_WARNINGS = 20;
+
     private final Supplier<Window> ownerSupplier;
 
     WorkspaceDialogs(Supplier<Window> ownerSupplier) {
@@ -98,6 +101,40 @@ final class WorkspaceDialogs {
         alert.setHeaderText(header);
         style(alert.getDialogPane());
         return alert.showAndWait().filter(ok::equals).isPresent();
+    }
+
+    void showImportSummary(CollectionImportResult result) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.initOwner(owner());
+        alert.setTitle("jREQ — Import complete");
+        alert.setHeaderText("Imported “" + result.collection().name() + "”");
+
+        VBox content = new VBox(8);
+        String counts = result.importedRequestCount() + " request(s) imported."
+                + (result.skippedRequestCount() > 0
+                        ? " " + result.skippedRequestCount() + " skipped."
+                        : "");
+        content.getChildren().add(new Label(counts));
+        if (!result.warnings().isEmpty()) {
+            Label warningsTitle = new Label("WARNINGS");
+            warningsTitle.getStyleClass().add("section-kicker");
+            content.getChildren().add(warningsTitle);
+            int shown = Math.min(result.warnings().size(), MAX_SHOWN_WARNINGS);
+            for (int index = 0; index < shown; index++) {
+                Label warning = new Label("• " + result.warnings().get(index).message());
+                warning.setWrapText(true);
+                warning.getStyleClass().add("muted-label");
+                content.getChildren().add(warning);
+            }
+            if (result.warnings().size() > shown) {
+                Label more = new Label("…and " + (result.warnings().size() - shown) + " more.");
+                more.getStyleClass().add("muted-label");
+                content.getChildren().add(more);
+            }
+        }
+        alert.getDialogPane().setContent(content);
+        style(alert.getDialogPane());
+        alert.showAndWait();
     }
 
     Optional<Boolean> confirmCollectionDeletion(RequestCollection collection) {

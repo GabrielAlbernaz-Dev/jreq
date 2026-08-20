@@ -34,9 +34,11 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import javafx.util.StringConverter;
 
+import java.io.File;
 import java.util.List;
 import java.util.Objects;
 import java.net.URI;
@@ -407,6 +409,24 @@ public final class MainController implements WorkspaceSidebar.Actions {
     private void handleNewCollection() {
         dialogs.promptName("New collection", "Collection name", "")
                 .ifPresent(viewModel::createCollection);
+    }
+
+    @FXML
+    private void handleImportCollection() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Import collection");
+        chooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Collection (JSON)", "*.json"));
+        File selected = chooser.showOpenDialog(owner());
+        if (selected == null) {
+            return;
+        }
+        viewModel.importCollection(selected.toPath())
+                .thenAccept(result -> {
+                    if (result.hasNotices()) {
+                        dialogs.showImportSummary(result);
+                    }
+                });
     }
 
     @FXML

@@ -1,6 +1,7 @@
 package com.jreq.bootstrap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jreq.request.application.CollectionImportService;
 import com.jreq.request.application.CollectionRepository;
 import com.jreq.request.application.CookieRepository;
 import com.jreq.request.application.BasicAuthenticationStrategy;
@@ -116,6 +117,8 @@ public final class ApplicationContext implements AutoCloseable {
         RequestAuthenticationApplicator authenticationApplicator = new RequestAuthenticationApplicator(List.of(
                 new BasicAuthenticationStrategy(),
                 new JwtBearerAuthenticationStrategy()));
+        CollectionImportService collectionImportService =
+                new CollectionImportService(persistence.collections(), databaseExecutor);
         WorkspaceService workspaceService = new WorkspaceService(
                 persistence.collections(),
                 persistence.savedRequests(),
@@ -126,7 +129,8 @@ public final class ApplicationContext implements AutoCloseable {
                 httpExecutor,
                 databaseExecutor,
                 variableResolver,
-                authenticationApplicator);
+                authenticationApplicator,
+                collectionImportService);
         return new ApplicationContext(
                 configuration,
                 new MainViewModel(
