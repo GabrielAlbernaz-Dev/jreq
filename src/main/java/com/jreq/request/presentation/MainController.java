@@ -192,12 +192,7 @@ public final class MainController implements WorkspaceSidebar.Actions {
     }
 
     private void handleManageCookies() {
-        URI currentUri;
-        try {
-            currentUri = URI.create(viewModel.urlProperty().get());
-        } catch (IllegalArgumentException invalidUrl) {
-            currentUri = URI.create("jreq:/");
-        }
+        URI currentUri = viewModel.requestUriForCookies().orElseGet(() -> URI.create("jreq:/"));
         new CookieManagementDialog(
                 owner(), viewModel.cookies(), currentUri, viewModel.responsiveModeProperty().get())
                 .show()

@@ -489,6 +489,23 @@ public final class MainViewModel {
         );
     }
 
+    /**
+     * Returns the request URI after applying the currently selected environment.
+     * Cookie management needs the resolved host/path to validate pasted cookies;
+     * parsing the editor's template URL directly would reject placeholders such
+     * as {@code {{api_host}}}.
+     */
+    public Optional<URI> requestUriForCookies() {
+        try {
+            HttpRequestDefinition resolved = variableResolver.resolve(
+                    definition(), environmentConfiguration.globals(), selectedEnvironment());
+            URI uri = URI.create(resolved.url());
+            return uri.getHost() == null ? Optional.empty() : Optional.of(uri);
+        } catch (RuntimeException invalidOrUnresolvedUrl) {
+            return Optional.empty();
+        }
+    }
+
     private CompletableFuture<SavedRequest> saveDefinition(
             HttpRequestDefinition request,
             RequestLocation location
